@@ -159,7 +159,23 @@ const ApplyJobModal: React.FC<ApplyJobModalProps> = ({
       }
     }
 
+    const isUnfundedJob =
+      job.funding_status !== "Funded" && job.funding_status !== "Paid";
+    let unfundedWarningToastId: string | undefined;
+
     try {
+      if (isUnfundedJob) {
+        unfundedWarningToastId = toast("This job is not funded, kindly contact your employer before doing anything and agree on payment method.", {
+          icon: "⚠️",
+          style: {
+            background: "#fffbeb",
+            color: "#92400e",
+            border: "1px solid #fde68a",
+          },
+        });
+        await new Promise((resolve) => setTimeout(resolve, 2000));
+      }
+
       // Prepare answers array - only include questions with question_id (from saved jobs)
       const answersArray: JobApplicationAnswer[] = [];
       if (job.questions && job.questions.length > 0) {
@@ -186,7 +202,17 @@ const ApplyJobModal: React.FC<ApplyJobModalProps> = ({
           answers: answersArray.length > 0 ? answersArray : undefined,
         },
       }).unwrap();
-      toast.success("Application submitted successfully!");
+      if (unfundedWarningToastId) {
+        toast.dismiss(unfundedWarningToastId);
+      }
+      toast.success("Successfully applied on this job.", {
+        duration: 4000,
+        style: {
+          background: "#ecfdf3",
+          color: "#065f46",
+          border: "1px solid #a7f3d0",
+        },
+      });
       setCoverLetter("");
       setResumeFile(null);
       setResumeUrl(null);
@@ -207,14 +233,7 @@ const ApplyJobModal: React.FC<ApplyJobModalProps> = ({
         .includes("not funded");
 
       if (isFundingInfo) {
-        toast(errorMessage, {
-          icon: "⚠️",
-          style: {
-            background: "#fffbeb",
-            color: "#92400e",
-            border: "1px solid #fde68a",
-          },
-        });
+        return;
       } else {
         toast.error(errorMessage);
       }
