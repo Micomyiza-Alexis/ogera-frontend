@@ -21,24 +21,26 @@ const useRefreshOnLoad = () => {
   const dispatch = useDispatch();
   const [isLoading, setIsLoading] = useState(true);
   const currentRole = useSelector((state: any) => state.auth.role);
+  const currentUser = useSelector((state: any) => state.auth.user);
+  const currentAccessToken = useSelector((state: any) => state.auth.accessToken);
 
   const BASE_URL = import.meta.env.VITE_API_URL;
 
   useEffect(() => {
     const refreshAndFetchUser = async () => {
-      // ⭐ Step 0: Check for the "isLoggedIn" hint cookie
-      const hasSessionHint = document.cookie
-        .split(";")
-        .some((item) => item.trim().startsWith("isLoggedIn="));
+      const hasPersistedAuth = Boolean(currentRole && currentUser);
 
-      if (!hasSessionHint) {
-        console.log("ℹ️ No session hint found. Skipping auto-refresh.");
+      // Fresh login already placed a valid token in redux.
+      // Skipping refresh here prevents a race that can bounce users to login.
+      if (currentAccessToken) {
         setIsLoading(false);
         return;
       }
 
       try {
-        // Step 1: Refresh the access token
+        // Always attempt refresh once on app load.
+        // In production, auth cookies can be non-readable from JS due to
+        // domain/security rules, so cookie-gated refresh causes false logouts.
         const refreshRes = await axios.get<RefreshResponse>(
           `${BASE_URL}/auth/refresh`,
           { withCredentials: true }
@@ -46,7 +48,7 @@ const useRefreshOnLoad = () => {
 
         const newAccessToken = refreshRes.data.data.accessToken;
 
-        // Step 2: Fetch full user profile if not in state
+        // Step 2: Fetch full user profile if role is missing
         if (!currentRole) {
           const userRes = await axios.get<UserResponse>(`${BASE_URL}/auth/me`, {
             headers: { Authorization: `Bearer ${newAccessToken}` },
@@ -69,20 +71,21 @@ const useRefreshOnLoad = () => {
 
         setIsLoading(false);
       } catch (err: any) {
-        // If refresh fails (e.g., token expired), clear hint and logout
+        // If refresh fails:
+        // - clear stale client auth only when we had persisted auth in redux/localStorage
+        // - otherwise treat as normal guest session
         if (err?.response?.status === 401) {
-          console.warn("⚠️ Session hint was present but session is invalid.");
-          document.cookie = "isLoggedIn=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
+          if (hasPersistedAuth) dispatch(logout());
         } else {
           console.error("❌ Refresh failed unexpectedly:", err);
+          if (hasPersistedAuth) dispatch(logout());
         }
-        dispatch(logout());
         setIsLoading(false);
       }
     };
 
     refreshAndFetchUser();
-  }, [dispatch, currentRole, BASE_URL]);
+  }, [dispatch, BASE_URL]);
 
   return isLoading;
 };
