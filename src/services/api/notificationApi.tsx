@@ -40,6 +40,15 @@ export interface MarkAllReadResponse {
   message: string;
 }
 
+export interface SendAdminNotificationRequest {
+  title: string;
+  message: string;
+  target_mode: "specific" | "role";
+  target_user_ids?: string[];
+  target_roles?: Array<"student" | "employer">;
+  send_email?: boolean;
+}
+
 export const notificationApi = apiSlice.injectEndpoints({
   endpoints: (builder) => ({
     /**
@@ -114,6 +123,23 @@ export const notificationApi = apiSlice.injectEndpoints({
       }),
       invalidatesTags: ["Notification"],
     }),
+
+    sendAdminNotification: builder.mutation<
+      {
+        success: boolean;
+        status: number;
+        data: { sent_count: number; email_sent_count: number; target_mode: string };
+        message: string;
+      },
+      SendAdminNotificationRequest
+    >({
+      query: (body) => ({
+        url: "/notifications/send",
+        method: "POST",
+        body,
+      }),
+      invalidatesTags: ["Notification"],
+    }),
   }),
 });
 
@@ -124,6 +150,7 @@ export const {
   useMarkAllNotificationsAsReadMutation,
   useDeleteNotificationMutation,
   useLazyGetNotificationsQuery,
+  useSendAdminNotificationMutation,
 } = notificationApi;
 
 

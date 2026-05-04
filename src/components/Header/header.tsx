@@ -12,6 +12,7 @@ import {
   useMarkNotificationAsReadMutation,
   useMarkAllNotificationsAsReadMutation,
 } from "../../services/api/notificationApi";
+import { hasAnyPermission } from "../../utils/permissionUtils";
 
 interface HeaderProps {
   onMenuClick: () => void;
@@ -31,13 +32,23 @@ const Header: React.FC<HeaderProps> = ({ onMenuClick }) => {
   const themeDropdownRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
   const dispatch = useDispatch();
-  const role = useSelector((state: any) => state.auth.role);
+  const roleRaw = useSelector((state: any) => state.auth.role);
+  const permissions = useSelector((state: any) => state.auth.permissions);
+  /** Match sidebar: roleName/roleType casing varies (e.g. superAdmin vs superadmin). */
+  const roleNorm = roleRaw ? String(roleRaw).toLowerCase().trim() : "";
+  const seesNotificationBell =
+    roleNorm === "employer" ||
+    roleNorm === "student" ||
+    roleNorm === "superadmin" ||
+    roleNorm === "admin" ||
+    hasAnyPermission(permissions, "/notifications", roleRaw);
+
   const user = useSelector((state: any) => state.auth.user);
   const userInitials = (user?.full_name || "U").split(" ").map((n: string) => n[0]).join("").slice(0, 2).toUpperCase();
   
   // Get unread notification count for employers/superadmins and students
   const { data: unreadCountData, refetch: refetchUnreadCount } = useGetUnreadNotificationCountQuery(undefined, {
-    skip: role !== "employer" && role !== "superadmin" && role !== "student",
+    skip: !seesNotificationBell,
     pollingInterval: 30000, // Poll every 30 seconds for new notifications
   });
   
@@ -45,7 +56,7 @@ const Header: React.FC<HeaderProps> = ({ onMenuClick }) => {
   const { data: notificationsData, refetch: refetchNotifications } = useGetNotificationsQuery(
     { limit: 10 },
     {
-      skip: role !== "employer" && role !== "superadmin" && role !== "student",
+      skip: !seesNotificationBell,
     }
   );
 
@@ -91,7 +102,7 @@ const Header: React.FC<HeaderProps> = ({ onMenuClick }) => {
 
   // Refetch notifications when dropdown opens to get latest data
   useEffect(() => {
-    if (isNotificationDropdownOpen && (role === "employer" || role === "superadmin" || role === "student")) {
+    if (isNotificationDropdownOpen && seesNotificationBell) {
       refetchNotifications();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -115,14 +126,14 @@ const Header: React.FC<HeaderProps> = ({ onMenuClick }) => {
     // Navigate based on notification type
     try {
       if (notification.related_id) {
-        if (notification.type === "job_application" && (role === "employer" || role === "superadmin")) {
+        if (notification.type === "job_application" && (roleNorm === "employer" || roleNorm === "superadmin")) {
           // Employer clicks job application notification -> go to job applications page
           if (notification.application?.job?.job_id) {
             navigate(`/dashboard/jobs/${notification.application.job.job_id}/applications`);
           } else {
             navigate("/dashboard/jobs/applications");
           }
-        } else if (notification.type === "application_status" && role === "student") {
+        } else if (notification.type === "application_status" && roleNorm === "student") {
           // Student clicks application status notification -> go to their applications page
           navigate("/dashboard/jobs/my-applications");
         }
@@ -204,7 +215,7 @@ const Header: React.FC<HeaderProps> = ({ onMenuClick }) => {
 
       {/* Center - Role + Dashboard title */}
       <div className="text-gray-700 font-semibold text-lg capitalize hidden sm:block">
-        {role ? `${role} ${t("header.dashboard")}` : t("header.dashboard")}
+        {roleRaw ? `${String(roleRaw)} ${t("header.dashboard")}` : t("header.dashboard")}
       </div>
 
       {/* Right side (theme + language + notification + profile) */}
@@ -292,7 +303,7 @@ const Header: React.FC<HeaderProps> = ({ onMenuClick }) => {
         </div>
 
         {/* Notification icon with dropdown */}
-        {(role === "employer" || role === "superadmin" || role === "student") && (
+        {seesNotificationBell && (
           <div className="relative" ref={notificationDropdownRef}>
             <button
               onClick={() => setIsNotificationDropdownOpen(!isNotificationDropdownOpen)}
@@ -352,7 +363,7 @@ const Header: React.FC<HeaderProps> = ({ onMenuClick }) => {
                             </p>
                             {notification.application && (
                               <div className="mt-2 text-xs text-gray-500 space-y-1">
-                                {notification.application.student && (role === "employer" || role === "superadmin") && (
+                                {notification.application.student && (roleNorm === "employer" || roleNorm === "superadmin") && (
                                   <p>
                                     {t("header.student")}: <span className="font-medium">{notification.application.student.full_name}</span>
                                   </p>
@@ -378,7 +389,7 @@ const Header: React.FC<HeaderProps> = ({ onMenuClick }) => {
                     <button
                       onClick={() => {
                         setIsNotificationDropdownOpen(false);
-                        if (role === "student") {
+                        if (roleNorm === "student") {
                           navigate("/dashboard/jobs/my-applications");
                         } else {
                           navigate("/dashboard/jobs/applications");
@@ -386,7 +397,7 @@ const Header: React.FC<HeaderProps> = ({ onMenuClick }) => {
                       }}
                       className="text-sm text-purple-600 hover:text-purple-700 font-medium"
                     >
-                      {role === "student" ? t("header.viewMyApplications") : t("header.viewAllApplications")}
+                      {roleNorm === "student" ? t("header.viewMyApplications") : t("header.viewAllApplications")}
                     </button>
                   </div>
                 )}
