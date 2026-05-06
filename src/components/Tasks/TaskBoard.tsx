@@ -13,6 +13,7 @@ import type { Task, TasksState } from '@/types/task.types';
 
 import TaskColumn from './TaskColumn';
 import TaskModal from './TaskModal';
+
 interface TaskBoardProps {
   tasks: TasksState;
   onMoveTask: (taskId: string, fromStatus: string, toStatus: string) => void;
@@ -36,11 +37,9 @@ const TaskBoard: FC<TaskBoardProps> = ({ tasks, onMoveTask, onOpenCreateTask }) 
 
     if (!over) return;
 
-    // Find which column the task came from
     let fromStatus = '';
     let taskId = '';
 
-    // Check in all columns to find the task
     (Object.keys(tasks) as Array<keyof TasksState>).forEach((status) => {
       const task = tasks[status].find((t) => t.id === active.id);
       if (task) {
@@ -61,7 +60,8 @@ const TaskBoard: FC<TaskBoardProps> = ({ tasks, onMoveTask, onOpenCreateTask }) 
     setIsModalOpen(true);
   };
 
-  const handleAddTask = (columnId: string) => {
+  // ✅ FIXED: removed unused columnId
+  const handleAddTask = () => {
     if (onOpenCreateTask) {
       onOpenCreateTask();
     }
@@ -77,7 +77,6 @@ const TaskBoard: FC<TaskBoardProps> = ({ tasks, onMoveTask, onOpenCreateTask }) 
     <>
       <DndContext sensors={sensors} onDragEnd={handleDragEnd}>
         <div className="flex-1 overflow-auto">
-          {/* Columns Container */}
           <div className="grid gap-6 grid-cols-1 md:grid-cols-2 lg:grid-cols-3 auto-rows-max lg:auto-rows-fr">
             {tabs.map((column) => (
               <TaskColumn
@@ -87,14 +86,13 @@ const TaskBoard: FC<TaskBoardProps> = ({ tasks, onMoveTask, onOpenCreateTask }) 
                 columnColor={column.color}
                 tasks={tasks[column.id as keyof TasksState] || []}
                 onCardClick={handleCardClick}
-                onAddTask={() => handleAddTask(column.id)}
+                onAddTask={handleAddTask} 
               />
             ))}
           </div>
         </div>
       </DndContext>
 
-      {/* Task Modal */}
       <TaskModal
         task={selectedTask}
         isOpen={isModalOpen}

@@ -190,7 +190,7 @@ const TaskTableView: React.FC<TaskTableViewProps> = ({ tasks, onTaskClick, onEdi
                       <div className="h-8 w-8 rounded-full bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center text-xs font-semibold text-white">
                         {((task.assigned_student || (task as any).assignedStudent)?.full_name || "")
                           .split(' ')
-                          .map((n) => n[0])
+                          .map((n: string) => n[0])
                           .join('')
                           .toUpperCase()}
                       </div>
