@@ -24,18 +24,20 @@ export const transformTasksToKanban = (apiTasks: any[]): TasksState => {
   // Map API status to display label
   const statusLabelMap: Record<string, string> = {
     'NOT_STARTED': 'Not Started',
-    'IN_PROGRESS': 'In Research',
-    'SUBMITTED': 'On Track',
+    'IN_PROGRESS': 'In Progress',
+    'SUBMITTED': 'Submitted',
     'UNDER_REVIEW': 'In Review',
-    'COMPLETED': 'Complete',
+    'COMPLETED': 'Completed',
     'REJECTED': 'Rejected',
     'DISPUTED': 'Disputed',
   };
 
   apiTasks.forEach((apiTask: any) => {
     const kanbanStatus = statusMap[apiTask.status] || 'todo';
+    const assignedStudent = apiTask.assignedStudent || apiTask.assigned_student;
+    const assignedName = assignedStudent?.full_name || assignedStudent?.name;
     const task: Task = {
-      id: apiTask.id,
+      id: apiTask.task_id || apiTask.id,
       title: apiTask.title,
       description: apiTask.description || 'No description provided',
       status: kanbanStatus as any,
@@ -45,8 +47,8 @@ export const transformTasksToKanban = (apiTasks: any[]): TasksState => {
       assignees: [
         {
           id: apiTask.assigned_student_id || '0',
-          name: apiTask.student?.name || 'Unassigned',
-          avatar: apiTask.student?.avatar,
+          name: assignedName || 'Unassigned',
+          avatar: assignedStudent?.avatar,
         },
       ],
       comments: apiTask.comments_count || 0,

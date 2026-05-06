@@ -12,7 +12,7 @@ import {
   BookmarkIcon,
 } from "@heroicons/react/24/outline";
 import { BookmarkIcon as BookmarkSolidIcon } from "@heroicons/react/24/solid";
-import { useGetActiveJobsQuery } from "../../services/api/jobsApi";
+import { useGetAllJobsQuery } from "../../services/api/jobsApi";
 import { useGetStudentApplicationsQuery } from "../../services/api/jobApplicationApi";
 import ApplyJobModal from "../../components/ApplyJobModal";
 import Loader from "../../components/Loader";
@@ -23,16 +23,26 @@ const ActiveJobs: React.FC = () => {
   const navigate = useNavigate();
   const roleRaw = useSelector((state: any) => state.auth.role);
   const role = roleRaw ? String(roleRaw).toLowerCase().trim() : "";
-  const { data, isLoading, error } = useGetActiveJobsQuery();
-  const { data: studentApplications, refetch: refetchApplications } = useGetStudentApplicationsQuery(undefined, {
-    skip: role !== "student",
-  });
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedLocation, setSelectedLocation] = useState("");
   const [selectedJob, setSelectedJob] = useState<any>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [savedJobs, setSavedJobs] = useState<Set<string>>(new Set());
-  
+  const { data, isLoading, error } = useGetAllJobsQuery(
+    {
+      status: "Active",
+      ...(searchQuery ? { search: searchQuery } : {}),
+      ...(selectedLocation ? { location: selectedLocation } : {}),
+    },
+    {
+      refetchOnMountOrArgChange: true,
+      refetchOnFocus: true,
+      refetchOnReconnect: true,
+    },
+  );
+  const { data: studentApplications, refetch: refetchApplications } = useGetStudentApplicationsQuery(undefined, {
+    skip: role !== "student",
+  });
   // Create a Set of job IDs the student has applied to
   const appliedJobIds = new Set(
     (studentApplications?.data || []).map((app: any) => app.job_id)
@@ -42,23 +52,11 @@ const ActiveJobs: React.FC = () => {
   const isFundedJob = (fundingStatus?: string | null) =>
     fundingStatus === "Funded" || fundingStatus === "Paid";
 
-  // Filter jobs based on search and location
   const filteredJobs = activeJobs.filter((job: any) => {
     if (role === "student" && !isFundedJob(job.funding_status)) {
       return false;
     }
-
-    const matchesSearch =
-      !searchQuery ||
-      job.job_title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      job.employer?.full_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      job.location?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      job.category?.toLowerCase().includes(searchQuery.toLowerCase());
-    
-    const matchesLocation =
-      !selectedLocation || job.location?.toLowerCase().includes(selectedLocation.toLowerCase());
-
-    return matchesSearch && matchesLocation;
+    return true;
   });
 
   // Get unique locations for filter
@@ -319,7 +317,7 @@ className="px-3 md:px-4 py-1.5 md:py-2 bg-purple-600 hover:bg-purple-700 text-wh
                               navigate(`/dashboard/jobs/${job.job_id}/applications`)
                             }
 className="px-3 md:px-4 py-1.5 md:py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md font-medium transition shadow-sm whitespace-nowrap text-xs md:text-sm flex-1 sm:flex-none cursor-pointer">                          
-                            {t("pages.jobs.manage")} ({job.applications || 0})
+                            Manage Applications ({job.applications || 0})
                           </button>
                         )}
                       </>

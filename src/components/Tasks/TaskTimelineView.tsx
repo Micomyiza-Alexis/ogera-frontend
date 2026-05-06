@@ -22,6 +22,18 @@ interface TaskTimelineViewProps {
 }
 
 const TaskTimelineView: React.FC<TaskTimelineViewProps> = ({ tasks, onTaskClick }) => {
+  const normalizeStatus = (status: string) => status?.toUpperCase().replaceAll('-', '_');
+  const getStatusLabel = (status: string) => {
+    const normalized = normalizeStatus(status);
+    if (normalized === 'NOT_STARTED' || normalized === 'TODO' || normalized === 'TO_DO') return 'Not Started';
+    if (normalized === 'IN_PROGRESS' || normalized === 'INPROGRESS') return 'In Progress';
+    if (normalized === 'SUBMITTED') return 'Submitted';
+    if (normalized === 'UNDER_REVIEW') return 'In Review';
+    if (normalized === 'COMPLETED' || normalized === 'DONE') return 'Completed';
+    if (normalized === 'REJECTED') return 'Rejected';
+    if (normalized === 'DISPUTED') return 'Disputed';
+    return status;
+  };
   // Sort tasks by deadline
   const sortedTasks = [...tasks].sort((a, b) => {
     const dateA = a.deadline ? new Date(a.deadline).getTime() : Infinity;
@@ -43,9 +55,11 @@ const TaskTimelineView: React.FC<TaskTimelineViewProps> = ({ tasks, onTaskClick 
   );
 
   const getStatusColor = (status: string) => {
-    switch (status?.toLowerCase()) {
-      case 'todo':
-      case 'to-do':
+    const normalized = normalizeStatus(status);
+    switch (normalized) {
+      case 'NOT_STARTED':
+      case 'TODO':
+      case 'TO_DO':
         return {
           bg: 'bg-gray-100',
           border: 'border-gray-300',
@@ -54,8 +68,10 @@ const TaskTimelineView: React.FC<TaskTimelineViewProps> = ({ tasks, onTaskClick 
           text: 'text-gray-700',
           icon: '○',
         };
-      case 'in-progress':
-      case 'inprogress':
+      case 'IN_PROGRESS':
+      case 'INPROGRESS':
+      case 'SUBMITTED':
+      case 'UNDER_REVIEW':
         return {
           bg: 'bg-amber-100',
           border: 'border-amber-300',
@@ -64,8 +80,8 @@ const TaskTimelineView: React.FC<TaskTimelineViewProps> = ({ tasks, onTaskClick 
           text: 'text-amber-700',
           icon: '⟳',
         };
-      case 'done':
-      case 'completed':
+      case 'COMPLETED':
+      case 'DONE':
         return {
           bg: 'bg-emerald-100',
           border: 'border-emerald-300',
@@ -122,9 +138,8 @@ const TaskTimelineView: React.FC<TaskTimelineViewProps> = ({ tasks, onTaskClick 
     <div className="space-y-8">
       {Object.entries(groupedByDeadline).map(([deadline, taskGroup]) => {
         // Parse the deadline date for sorting
-        const [month, day, year] = deadline.split('/').map(Number);
-        const deadlineDate = new Date(year, month - 1, day);
-        const isUpcoming = deadlineDate >= new Date();
+        const deadlineDate = deadline === 'No Deadline' ? null : new Date(deadline);
+        const isUpcoming = !deadlineDate || deadlineDate >= new Date();
 
         return (
           <div key={deadline} className="relative">
@@ -188,11 +203,7 @@ const TaskTimelineView: React.FC<TaskTimelineViewProps> = ({ tasks, onTaskClick 
                               className={`inline-flex items-center gap-1 rounded-full px-2 py-1 text-xs font-medium ${colors.bg} ${colors.text}`}
                             >
                               <span>{colors.icon}</span>
-                              {task.status === 'in-progress' || task.status === 'inprogress'
-                                ? 'In Progress'
-                                : task.status === 'todo' || task.status === 'to-do'
-                                  ? 'To Do'
-                                  : 'Completed'}
+                              {getStatusLabel(task.status)}
                             </span>
 
                             {overdue && (
@@ -210,17 +221,17 @@ const TaskTimelineView: React.FC<TaskTimelineViewProps> = ({ tasks, onTaskClick 
                         </div>
 
                         {/* Assigned Student */}
-                        {task.assigned_student && (
+                        {(task.assigned_student || (task as any).assignedStudent) && (
                           <div className="flex flex-col items-end gap-2 flex-shrink-0">
                             <div className="h-8 w-8 rounded-full bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center text-xs font-semibold text-white">
-                              {task.assigned_student.full_name
+                              {((task.assigned_student || (task as any).assignedStudent)?.full_name || "")
                                 .split(' ')
                                 .map((n) => n[0])
                                 .join('')
                                 .toUpperCase()}
                             </div>
                             <span className="text-xs text-gray-700 font-medium text-right max-w-[80px] truncate">
-                              {task.assigned_student.full_name}
+                              {(task.assigned_student || (task as any).assignedStudent)?.full_name}
                             </span>
                           </div>
                         )}

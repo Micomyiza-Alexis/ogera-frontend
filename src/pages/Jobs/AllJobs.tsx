@@ -16,7 +16,6 @@ import {
   useToggleJobStatusMutation,
   useReviewJobMutation,
 } from "../../services/api/jobsApi";
-import { useGetUserProfileQuery } from "../../services/api/authApi";
 import { useGetStudentApplicationsQuery } from "../../services/api/jobApplicationApi";
 import ApplyJobModal from "../../components/ApplyJobModal";
 import Loader from "../../components/Loader";
@@ -31,22 +30,6 @@ const AllJobs: React.FC = () => {
   const role = roleRaw ? String(roleRaw).toLowerCase().trim() : "";
   const isRoleReady = Boolean(role);
   const isUnfundedRoute = location.pathname === "/dashboard/jobs/unfunded";
-  const jobsQueryParams =
-    role === "employer" && isUnfundedRoute
-      ? { funded: false }
-      : role === "employer"
-      ? undefined
-      : undefined;
-  const { data, isLoading, isFetching, error, refetch } = useGetAllJobsQuery(jobsQueryParams, {
-    skip: !isRoleReady,
-    refetchOnMountOrArgChange: true,
-    refetchOnFocus: true,
-    refetchOnReconnect: true,
-  });
-  const { data: profileData } = useGetUserProfileQuery(undefined);
-  const { data: studentApplications, refetch: refetchApplications } = useGetStudentApplicationsQuery(undefined, {
-    skip: role !== "student",
-  });
   const [selectedJob, setSelectedJob] = useState<any>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [toggleStatus, { isLoading: isToggling }] = useToggleJobStatusMutation();
@@ -58,7 +41,25 @@ const AllJobs: React.FC = () => {
   const [selectedPaymentRange, setSelectedPaymentRange] = useState("");
   const [savedJobs, setSavedJobs] = useState<Set<string>>(new Set());
   const [reviewJob, { isLoading: isReviewingJob }] = useReviewJobMutation();
-
+  const jobsQueryParams =
+    {
+      ...(role === "employer" && isUnfundedRoute ? { funded: false } : {}),
+      ...(searchQuery ? { search: searchQuery } : {}),
+      ...(selectedLocation ? { location: selectedLocation } : {}),
+      ...(selectedStatus ? { status: selectedStatus as any } : {}),
+      ...(selectedCategory ? { category: selectedCategory } : {}),
+      ...(selectedCurrency ? { currency: selectedCurrency } : {}),
+      ...(selectedPaymentRange ? { payment_range: selectedPaymentRange } : {}),
+    };
+  const { data, isLoading, isFetching, error, refetch } = useGetAllJobsQuery(jobsQueryParams, {
+    skip: !isRoleReady,
+    refetchOnMountOrArgChange: true,
+    refetchOnFocus: true,
+    refetchOnReconnect: true,
+  });
+  const { data: studentApplications, refetch: refetchApplications } = useGetStudentApplicationsQuery(undefined, {
+    skip: role !== "student",
+  });
   useEffect(() => {
     if (!isRoleReady) return;
     refetch();
@@ -70,66 +71,15 @@ const AllJobs: React.FC = () => {
   );
 
   const jobs = data?.data || [];
-  const currentUserId = profileData?.data?.user_id;
   const isFundedJob = (fundingStatus?: string | null) =>
     fundingStatus === "Funded" || fundingStatus === "Paid";
 
-  // Filter jobs based on role, search, location, and status
+  // Backend now handles filtering; keep only route-level constraints.
   const filteredJobs = jobs.filter((job: any) => {
-    // For employers, only show their own jobs
-    if (role === "employer" && currentUserId && job.employer_id !== currentUserId) {
-      return false;
-    }
-
-    // Employer unfunded page: only jobs that are not yet funded.
-    if (role === "employer" && isUnfundedRoute && isFundedJob(job.funding_status)) {
-      return false;
-    }
-
     if ((role === "superadmin" || role === "admin") && isUnfundedRoute && isFundedJob(job.funding_status)) {
       return false;
     }
-
-    // Students should only see admin-approved published jobs.
-    if (role === "student" && job.status !== "Active") {
-      return false;
-    }
-    
-    const matchesSearch =
-      !searchQuery ||
-      job.job_title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      job.employer?.full_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      job.location?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      job.category?.toLowerCase().includes(searchQuery.toLowerCase());
-    
-    const matchesLocation =
-      !selectedLocation || job.location?.toLowerCase().includes(selectedLocation.toLowerCase());
-
-    const matchesStatus =
-      !selectedStatus || job.status === selectedStatus;
-
-    const matchesCategory =
-      !selectedCategory || job.category === selectedCategory;
-
-    const matchesCurrency =
-      !selectedCurrency || (job.currency || "USD") === selectedCurrency;
-
-    const budget = Number(job.budget || 0);
-    const matchesPayment =
-      !selectedPaymentRange ||
-      (selectedPaymentRange === "under-500" && budget < 500) ||
-      (selectedPaymentRange === "500-2000" && budget >= 500 && budget <= 2000) ||
-      (selectedPaymentRange === "2000-5000" && budget > 2000 && budget <= 5000) ||
-      (selectedPaymentRange === "5000-plus" && budget > 5000);
-
-    return (
-      matchesSearch &&
-      matchesLocation &&
-      matchesStatus &&
-      matchesCategory &&
-      matchesCurrency &&
-      matchesPayment
-    );
+    return true;
   });
 
   // Get unique locations and statuses for filters
@@ -537,7 +487,7 @@ className="px-3 md:px-4 py-1.5 md:py-2 bg-indigo-600 hover:bg-indigo-700 text-wh
                                 navigate(`/dashboard/jobs/${job.job_id}/applications`)
                               }
 className="px-3 md:px-4 py-1.5 md:py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-md font-medium transition shadow-sm whitespace-nowrap text-xs md:text-sm flex-1 sm:flex-none cursor-pointer"                            >
-                              {t("pages.jobs.manage")} ({job.applications || 0})
+                              Manage Applications ({job.applications || 0})
                             </button>
                             {(job.status === "Active" || job.status === "Inactive") && (
                               <button

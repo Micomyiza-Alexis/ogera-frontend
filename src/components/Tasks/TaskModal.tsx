@@ -42,13 +42,13 @@ const TaskModal: FC<TaskModalProps> = ({ task, isOpen, onClose }) => {
     <>
       {/* Backdrop */}
       <div
-        className="fixed inset-0 z-40 bg-black bg-opacity-50 transition-opacity duration-200"
+        className="fixed inset-0 z-40 bg-slate-900/25 backdrop-blur-sm transition-opacity duration-200"
         onClick={onClose}
       />
 
       {/* Modal */}
       <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6">
-        <div className="relative max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-2xl bg-white shadow-2xl">
+        <div className="relative w-full max-w-2xl overflow-hidden rounded-2xl bg-white shadow-2xl">
           {/* Close Button */}
           <button
             onClick={onClose}

@@ -246,7 +246,7 @@ const JobDetails: React.FC = () => {
           <div className="flex flex-col sm:flex-row gap-2">
             <Button
               backgroundcolor="#7f56d9"
-              text={`${t("pages.jobs.manage")} (${job.applications || 0})`}
+              text={`Manage Applications (${job.applications || 0})`}
               onClick={() => navigate(`/dashboard/jobs/${id}/applications`)}
             />
             <Button

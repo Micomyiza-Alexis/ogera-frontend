@@ -30,11 +30,11 @@ const TaskCard: FC<TaskCardProps> = ({ task, onCardClick }) => {
     switch (status) {
       case 'Not Started':
         return 'bg-gray-100 text-gray-700';
-      case 'In Research':
+      case 'In Progress':
+      case 'Submitted':
+      case 'In Review':
         return 'bg-orange-100 text-orange-700';
-      case 'On Track':
-        return 'bg-purple-100 text-purple-700';
-      case 'Complete':
+      case 'Completed':
         return 'bg-green-100 text-green-700';
       default:
         return 'bg-gray-100 text-gray-700';

@@ -19,12 +19,16 @@ interface Task {
 interface TaskTableViewProps {
   tasks: Task[];
   onTaskClick?: (task: Task) => void;
+  onEditTask?: (task: Task) => void;
+  onDeleteTask?: (task: Task) => void;
 }
 
-type SortField = 'title' | 'status' | 'deadline' | 'payment_amount' | 'assigned_student';
+type SortField = 'title' | 'status' | 'deadline' | 'assigned_student';
 type SortOrder = 'asc' | 'desc';
 
-const TaskTableView: React.FC<TaskTableViewProps> = ({ tasks, onTaskClick }) => {
+const TaskTableView: React.FC<TaskTableViewProps> = ({ tasks, onTaskClick, onEditTask, onDeleteTask }) => {
+  const normalizeStatus = (status: string) => status?.toUpperCase().replaceAll('-', '_');
+
   const [sortField, setSortField] = useState<SortField>('created_at' as any);
   const [sortOrder, setSortOrder] = useState<SortOrder>('desc');
 
@@ -52,15 +56,19 @@ const TaskTableView: React.FC<TaskTableViewProps> = ({ tasks, onTaskClick }) => 
   });
 
   const getStatusColor = (status: string) => {
-    switch (status?.toLowerCase()) {
-      case 'todo':
-      case 'to-do':
+    const normalized = normalizeStatus(status);
+    switch (normalized) {
+      case 'NOT_STARTED':
+      case 'TODO':
+      case 'TO_DO':
         return 'bg-gray-100 text-gray-800';
-      case 'in-progress':
-      case 'inprogress':
+      case 'IN_PROGRESS':
+      case 'INPROGRESS':
+      case 'SUBMITTED':
+      case 'UNDER_REVIEW':
         return 'bg-amber-100 text-amber-800';
-      case 'done':
-      case 'completed':
+      case 'COMPLETED':
+      case 'DONE':
         return 'bg-emerald-100 text-emerald-800';
       default:
         return 'bg-gray-100 text-gray-800';
@@ -68,16 +76,26 @@ const TaskTableView: React.FC<TaskTableViewProps> = ({ tasks, onTaskClick }) => 
   };
 
   const getStatusLabel = (status: string) => {
-    switch (status?.toLowerCase()) {
-      case 'todo':
-      case 'to-do':
-        return 'To Do';
-      case 'in-progress':
-      case 'inprogress':
+    const normalized = normalizeStatus(status);
+    switch (normalized) {
+      case 'NOT_STARTED':
+      case 'TODO':
+      case 'TO_DO':
+        return 'Not Started';
+      case 'IN_PROGRESS':
+      case 'INPROGRESS':
         return 'In Progress';
-      case 'done':
-      case 'completed':
+      case 'SUBMITTED':
+        return 'Submitted';
+      case 'UNDER_REVIEW':
+        return 'In Review';
+      case 'COMPLETED':
+      case 'DONE':
         return 'Completed';
+      case 'REJECTED':
+        return 'Rejected';
+      case 'DISPUTED':
+        return 'Disputed';
       default:
         return status;
     }
@@ -137,9 +155,6 @@ const TaskTableView: React.FC<TaskTableViewProps> = ({ tasks, onTaskClick }) => 
               <th className="px-6 py-4 text-left">
                 <SortHeader label="Deadline" field="deadline" />
               </th>
-              <th className="px-6 py-4 text-right">
-                <SortHeader label="Payment" field="payment_amount" />
-              </th>
               <th className="px-6 py-4 text-center">Actions</th>
             </tr>
           </thead>
@@ -170,16 +185,16 @@ const TaskTableView: React.FC<TaskTableViewProps> = ({ tasks, onTaskClick }) => 
                   </span>
                 </td>
                 <td className="px-6 py-4">
-                  {task.assigned_student ? (
+                  {(task.assigned_student || (task as any).assignedStudent) ? (
                     <div className="flex items-center gap-2">
                       <div className="h-8 w-8 rounded-full bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center text-xs font-semibold text-white">
-                        {task.assigned_student.full_name
+                        {((task.assigned_student || (task as any).assignedStudent)?.full_name || "")
                           .split(' ')
                           .map((n) => n[0])
                           .join('')
                           .toUpperCase()}
                       </div>
-                      <span className="text-sm text-gray-700">{task.assigned_student.full_name}</span>
+                      <span className="text-sm text-gray-700">{(task.assigned_student || (task as any).assignedStudent)?.full_name}</span>
                     </div>
                   ) : (
                     <span className="text-sm text-gray-500 italic">Unassigned</span>
@@ -188,19 +203,12 @@ const TaskTableView: React.FC<TaskTableViewProps> = ({ tasks, onTaskClick }) => 
                 <td className="px-6 py-4">
                   <span className="text-sm text-gray-700">{formatDate(task.deadline)}</span>
                 </td>
-                <td className="px-6 py-4 text-right">
-                  {task.payment_amount ? (
-                    <span className="font-semibold text-gray-900">${task.payment_amount.toFixed(2)}</span>
-                  ) : (
-                    <span className="text-gray-500">-</span>
-                  )}
-                </td>
                 <td className="px-6 py-4">
                   <div className="flex justify-center gap-1">
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
-                        // Handle edit
+                        onEditTask?.(task);
                       }}
                       className="rounded-lg p-2 text-gray-400 hover:bg-white hover:text-blue-600 transition"
                       title="Edit task"
@@ -210,7 +218,7 @@ const TaskTableView: React.FC<TaskTableViewProps> = ({ tasks, onTaskClick }) => 
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
-                        // Handle delete
+                        onDeleteTask?.(task);
                       }}
                       className="rounded-lg p-2 text-gray-400 hover:bg-white hover:text-red-600 transition"
                       title="Delete task"

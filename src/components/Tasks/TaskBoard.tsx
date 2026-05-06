@@ -16,9 +16,10 @@ import TaskModal from './TaskModal';
 interface TaskBoardProps {
   tasks: TasksState;
   onMoveTask: (taskId: string, fromStatus: string, toStatus: string) => void;
+  onOpenCreateTask?: () => void;
 }
 
-const TaskBoard: FC<TaskBoardProps> = ({ tasks, onMoveTask }) => {
+const TaskBoard: FC<TaskBoardProps> = ({ tasks, onMoveTask, onOpenCreateTask }) => {
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
 
@@ -61,8 +62,9 @@ const TaskBoard: FC<TaskBoardProps> = ({ tasks, onMoveTask }) => {
   };
 
   const handleAddTask = (columnId: string) => {
-    // Placeholder for add task functionality
-    alert(`Add new task to ${columnId} (Coming Soon)`);
+    if (onOpenCreateTask) {
+      onOpenCreateTask();
+    }
   };
 
   const tabs = [

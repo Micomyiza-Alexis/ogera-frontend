@@ -19,29 +19,49 @@ interface Task {
 interface TaskListViewProps {
   tasks: Task[];
   onTaskClick?: (task: Task) => void;
+  onEditTask?: (task: Task) => void;
+  onDeleteTask?: (task: Task) => void;
 }
 
-const TaskListView: React.FC<TaskListViewProps> = ({ tasks, onTaskClick }) => {
+const TaskListView: React.FC<TaskListViewProps> = ({ tasks, onTaskClick, onEditTask, onDeleteTask }) => {
+  const normalizeStatus = (status: string) => status?.toUpperCase().replaceAll('-', '_');
+
+  const getStatusLabel = (status: string) => {
+    const normalized = normalizeStatus(status);
+    if (normalized === 'NOT_STARTED' || normalized === 'TODO' || normalized === 'TO_DO') return 'Not Started';
+    if (normalized === 'IN_PROGRESS' || normalized === 'INPROGRESS') return 'In Progress';
+    if (normalized === 'SUBMITTED') return 'Submitted';
+    if (normalized === 'UNDER_REVIEW') return 'In Review';
+    if (normalized === 'COMPLETED' || normalized === 'DONE') return 'Completed';
+    if (normalized === 'REJECTED') return 'Rejected';
+    if (normalized === 'DISPUTED') return 'Disputed';
+    return status;
+  };
+
   const getStatusColor = (status: string) => {
-    switch (status?.toLowerCase()) {
-      case 'todo':
-      case 'to-do':
+    const normalized = normalizeStatus(status);
+    switch (normalized) {
+      case 'NOT_STARTED':
+      case 'TODO':
+      case 'TO_DO':
         return {
           bg: 'bg-gray-50',
           border: 'border-gray-200',
           badge: 'bg-gray-200 text-gray-800',
           icon: ListBulletIcon,
         };
-      case 'in-progress':
-      case 'inprogress':
+      case 'IN_PROGRESS':
+      case 'INPROGRESS':
+      case 'SUBMITTED':
+      case 'UNDER_REVIEW':
         return {
           bg: 'bg-amber-50',
           border: 'border-amber-200',
           badge: 'bg-amber-200 text-amber-800',
           icon: ClockIcon,
         };
-      case 'done':
-      case 'completed':
+      case 'COMPLETED':
+      case 'DONE':
         return {
           bg: 'bg-emerald-50',
           border: 'border-emerald-200',
@@ -114,11 +134,7 @@ const TaskListView: React.FC<TaskListViewProps> = ({ tasks, onTaskClick }) => {
                 {/* Task Meta */}
                 <div className="mt-3 flex flex-wrap items-center gap-3">
                   <span className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium ${colors.badge}`}>
-                    {task.status === 'in-progress' || task.status === 'inprogress'
-                      ? 'In Progress'
-                      : task.status === 'todo' || task.status === 'to-do'
-                        ? 'To Do'
-                        : 'Completed'}
+                    {getStatusLabel(task.status)}
                   </span>
 
                   {task.deadline && (
@@ -137,13 +153,13 @@ const TaskListView: React.FC<TaskListViewProps> = ({ tasks, onTaskClick }) => {
 
               {/* Assigned Student & Actions */}
               <div className="flex flex-col items-end gap-3">
-                {task.assigned_student ? (
+                {(task.assigned_student || (task as any).assignedStudent) ? (
                   <div className="flex items-center gap-2">
                     <div className="h-8 w-8 rounded-full bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center text-xs font-semibold text-white">
-                      {getInitials(task.assigned_student.full_name)}
+                      {getInitials((task.assigned_student || (task as any).assignedStudent)?.full_name)}
                     </div>
                     <span className="text-xs text-gray-700 font-medium truncate max-w-[100px]">
-                      {task.assigned_student.full_name}
+                      {(task.assigned_student || (task as any).assignedStudent)?.full_name}
                     </span>
                   </div>
                 ) : (
@@ -155,7 +171,7 @@ const TaskListView: React.FC<TaskListViewProps> = ({ tasks, onTaskClick }) => {
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
-                      // Handle edit action
+                      onEditTask?.(task);
                     }}
                     className="rounded-lg p-2 text-gray-400 hover:bg-white hover:text-blue-600 transition"
                     title="Edit task"
@@ -165,7 +181,7 @@ const TaskListView: React.FC<TaskListViewProps> = ({ tasks, onTaskClick }) => {
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
-                      // Handle delete action
+                      onDeleteTask?.(task);
                     }}
                     className="rounded-lg p-2 text-gray-400 hover:bg-white hover:text-red-600 transition"
                     title="Delete task"

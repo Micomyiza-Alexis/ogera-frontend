@@ -93,6 +93,11 @@ export interface JobsListResponse {
 export interface JobsQueryParams {
   status?: "Pending" | "Active" | "Inactive" | "Completed";
   funded?: boolean;
+  search?: string;
+  location?: string;
+  category?: string;
+  currency?: string;
+  payment_range?: string;
 }
 
 export interface DeleteJobResponse {

@@ -1384,6 +1384,22 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
             </div>
           )}
 
+          {role === "student" && (
+            <div
+              className={`flex items-center gap-3 px-3 py-2.5 rounded-lg cursor-pointer transition-all duration-200 group ${
+                isActive("/dashboard/tasks")
+                  ? "bg-[#9F7AEA]/15 text-white border-l-2 border-[#9F7AEA]"
+                  : "hover:bg-[#9F7AEA]/10"
+              }`}
+              onClick={() => handleNavigation("/dashboard/tasks")}
+            >
+              <ListBulletIcon className={`h-5 w-5 transition-colors ${isActive("/dashboard/tasks") ? "text-white" : "text-white/70 group-hover:text-white"}`} />
+              <span className={`font-medium transition-colors ${isActive("/dashboard/tasks") ? "text-white" : "group-hover:text-white"}`}>
+                Tasks
+              </span>
+            </div>
+          )}
+
           {/* Jobs - Student, Employer, Admin, or users with permission (not verifyDocAdmin) */}
           {/* Jobs - Student, Admin, or users with permission (not verifyDocAdmin).
               Employers use their own dedicated Jobs menu rendered above. */}

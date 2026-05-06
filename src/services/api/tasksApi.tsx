@@ -58,6 +58,11 @@ export interface TaskRecord {
     email: string;
     mobile_number?: string;
   };
+  job?: {
+    job_id: string;
+    job_title: string;
+    status: string;
+  };
 }
 
 export interface TaskManagementSummary {
@@ -97,7 +102,13 @@ export interface CreateTaskRequest {
   title: string;
   description?: string;
   deadline?: string | null;
-  payment_amount?: number | null;
+}
+
+export interface UpdateTaskRequest {
+  assigned_student_id?: string;
+  title?: string;
+  description?: string;
+  deadline?: string | null;
 }
 
 export const tasksApi = apiSlice.injectEndpoints({
@@ -121,11 +132,47 @@ export const tasksApi = apiSlice.injectEndpoints({
       ],
     }),
 
+    getMyAssignedTasks: builder.query<ApiResponse<TaskRecord[]>, void>({
+      query: () => ({
+        url: "/tasks/my-assigned",
+        method: "GET",
+      }),
+      providesTags: ["Task"],
+    }),
+
     createTask: builder.mutation<ApiResponse<TaskRecord>, { jobId: string; data: CreateTaskRequest }>({
       query: ({ jobId, data }) => ({
         url: `/jobs/${jobId}/tasks`,
         method: "POST",
         body: data,
+      }),
+      invalidatesTags: (_result, _error, { jobId }) => [
+        "Task",
+        { type: "Job", id: jobId },
+        "Job",
+      ],
+    }),
+
+    updateTask: builder.mutation<
+      ApiResponse<TaskRecord>,
+      { jobId: string; taskId: string; data: UpdateTaskRequest }
+    >({
+      query: ({ jobId, taskId, data }) => ({
+        url: `/jobs/${jobId}/tasks/${taskId}`,
+        method: "PUT",
+        body: data,
+      }),
+      invalidatesTags: (_result, _error, { jobId }) => [
+        "Task",
+        { type: "Job", id: jobId },
+        "Job",
+      ],
+    }),
+
+    deleteTask: builder.mutation<ApiResponse<{ task_id: string }>, { jobId: string; taskId: string }>({
+      query: ({ jobId, taskId }) => ({
+        url: `/jobs/${jobId}/tasks/${taskId}`,
+        method: "DELETE",
       }),
       invalidatesTags: (_result, _error, { jobId }) => [
         "Task",
@@ -155,6 +202,9 @@ export const tasksApi = apiSlice.injectEndpoints({
 export const {
   useGetEmployerTaskOverviewQuery,
   useGetJobTaskManagementQuery,
+  useGetMyAssignedTasksQuery,
   useCreateTaskMutation,
+  useUpdateTaskMutation,
+  useDeleteTaskMutation,
   useUpdateTaskStatusMutation,
 } = tasksApi;

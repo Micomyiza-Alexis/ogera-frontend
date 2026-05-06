@@ -58,6 +58,7 @@ import EmployerAcceptedApplications from "./pages/Jobs/EmployerAcceptedApplicati
 import EmployerRejectedApplications from "./pages/Jobs/EmployerRejectedApplications";
 import EmployerTasks from "./pages/Jobs/EmployerTasks";
 import JobTasksKanban from "./pages/Jobs/JobTasksKanban";
+import StudentTasks from "./pages/StudentTasks";
 
 // Dispute Pages
 import Disputes from "./pages/Disputes";
@@ -354,6 +355,16 @@ function App() {
                 {
                   index: true,
                   Component: EmployerTasks,
+                },
+              ],
+            },
+            {
+              path: "tasks",
+              element: <ProtectedRoute allowedRoles={["student"]} />,
+              children: [
+                {
+                  index: true,
+                  Component: StudentTasks,
                 },
               ],
             },

@@ -44,7 +44,6 @@ const JobTasks: React.FC = () => {
     title: "",
     description: "",
     deadline: "",
-    payment_amount: "",
     assigned_student_id: "",
   });
 
@@ -86,7 +85,6 @@ const JobTasks: React.FC = () => {
           description: formState.description || undefined,
           deadline: formState.deadline || null,
           assigned_student_id: formState.assigned_student_id,
-          payment_amount: formState.payment_amount ? Number(formState.payment_amount) : null,
         },
       }).unwrap();
 
@@ -95,7 +93,6 @@ const JobTasks: React.FC = () => {
         title: "",
         description: "",
         deadline: "",
-        payment_amount: "",
         assigned_student_id: "",
       });
     } catch (err: any) {
@@ -230,29 +227,14 @@ const JobTasks: React.FC = () => {
                 />
               </div>
 
-              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                <div>
-                  <label className="mb-1 block text-sm font-medium text-gray-700">Deadline</label>
-                  <input
-                    type="date"
-                    value={formState.deadline}
-                    onChange={(event) => setFormState((prev) => ({ ...prev, deadline: event.target.value }))}
-                    className="w-full rounded-xl border border-gray-200 px-4 py-3 outline-none transition focus:border-indigo-500"
-                  />
-                </div>
-                <div>
-                  <label className="mb-1 block text-sm font-medium text-gray-700">Payment Amount</label>
-                  <input
-                    type="number"
-                    min="0"
-                    step="0.01"
-                    value={formState.payment_amount}
-                    onChange={(event) =>
-                      setFormState((prev) => ({ ...prev, payment_amount: event.target.value }))
-                    }
-                    className="w-full rounded-xl border border-gray-200 px-4 py-3 outline-none transition focus:border-indigo-500"
-                  />
-                </div>
+              <div>
+                <label className="mb-1 block text-sm font-medium text-gray-700">Deadline</label>
+                <input
+                  type="date"
+                  value={formState.deadline}
+                  onChange={(event) => setFormState((prev) => ({ ...prev, deadline: event.target.value }))}
+                  className="w-full rounded-xl border border-gray-200 px-4 py-3 outline-none transition focus:border-indigo-500"
+                />
               </div>
 
               <div>
