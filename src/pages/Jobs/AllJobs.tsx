@@ -9,8 +9,18 @@ import {
   CurrencyDollarIcon,
   ClockIcon,
   BookmarkIcon,
+  PlusIcon,
+  EllipsisHorizontalIcon,
+  ArrowPathIcon,
+  ChevronDownIcon,
+  UserGroupIcon,
+  ChartBarIcon,
+  FunnelIcon,
+  CheckCircleIcon,
+  XCircleIcon,
+  ExclamationCircleIcon,
 } from "@heroicons/react/24/outline";
-import { BookmarkIcon as BookmarkSolidIcon } from "@heroicons/react/24/solid";
+import { BookmarkIcon as BookmarkSolidIcon, CheckCircleIcon as CheckCircleSolid } from "@heroicons/react/24/solid";
 import {
   useGetAllJobsQuery,
   useToggleJobStatusMutation,
@@ -18,10 +28,113 @@ import {
 } from "../../services/api/jobsApi";
 import { useGetStudentApplicationsQuery } from "../../services/api/jobApplicationApi";
 import ApplyJobModal from "../../components/ApplyJobModal";
-import Loader from "../../components/Loader";
 import { formatRelativeTime } from "../../utils/timeUtils";
 import { formatBudgetWithCurrency } from "../../constants/currencies";
 
+// ─── Status config ────────────────────────────────────────────────────────────
+const STATUS_CONFIG: Record<string, { bg: string; text: string; dot: string; label: string }> = {
+  Active:    { bg: "bg-emerald-50",  text: "text-emerald-700", dot: "bg-emerald-500",  label: "Active"    },
+  Pending:   { bg: "bg-amber-50",    text: "text-amber-700",   dot: "bg-amber-500",    label: "Pending"   },
+  Inactive:  { bg: "bg-slate-100",   text: "text-slate-600",   dot: "bg-slate-400",    label: "Inactive"  },
+  Completed: { bg: "bg-sky-50",      text: "text-sky-700",     dot: "bg-sky-500",      label: "Completed" },
+};
+
+const getStatusCfg = (s: string) =>
+  STATUS_CONFIG[s] ?? { bg: "bg-slate-100", text: "text-slate-600", dot: "bg-slate-400", label: s };
+
+// ─── Funding badge ────────────────────────────────────────────────────────────
+const FundingBadge: React.FC<{ status?: string | null }> = ({ status }) => {
+  const funded = status === "Funded" || status === "Paid";
+  return (
+    <span
+      className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold tracking-wide border ${
+        funded
+          ? "bg-violet-50/80 text-violet-700 border-violet-200/60"
+          : "bg-orange-50/80 text-orange-700 border-orange-200/60"
+      }`}
+    >
+      {funded ? (
+        <CheckCircleSolid className="w-3 h-3" />
+      ) : (
+        <ExclamationCircleIcon className="w-3 h-3" />
+      )}
+      {funded ? "Funded" : "Unfunded"}
+    </span>
+  );
+};
+
+// ─── Skeleton card ────────────────────────────────────────────────────────────
+const SkeletonCard = () => (
+  <div className="bg-white rounded-2xl border border-slate-100 p-5 animate-pulse">
+    <div className="flex gap-4">
+      <div className="w-12 h-12 rounded-xl bg-slate-100 flex-shrink-0" />
+      <div className="flex-1 space-y-2.5">
+        <div className="h-4 bg-slate-100 rounded-lg w-2/3" />
+        <div className="h-3 bg-slate-100 rounded-lg w-1/3" />
+        <div className="flex gap-2 mt-3">
+          <div className="h-6 w-16 bg-slate-100 rounded-full" />
+          <div className="h-6 w-20 bg-slate-100 rounded-full" />
+          <div className="h-6 w-14 bg-slate-100 rounded-full" />
+        </div>
+      </div>
+      <div className="flex flex-col gap-2 w-24">
+        <div className="h-8 bg-slate-100 rounded-lg" />
+        <div className="h-8 bg-slate-100 rounded-lg" />
+      </div>
+    </div>
+  </div>
+);
+
+// ─── Stat tile ────────────────────────────────────────────────────────────────
+const StatTile: React.FC<{
+  label: string;
+  value: number | string;
+  icon: React.ElementType;
+  color: string;
+  bg: string;
+}> = ({ label, value, icon: Icon, color, bg }) => (
+  <div className={`${bg} rounded-2xl border border-slate-100/80 p-4 flex items-center gap-3 hover:shadow-md hover:border-slate-200 transition-all duration-200 group cursor-default`}>
+    <div className={`w-10 h-10 rounded-xl ${color} flex items-center justify-center flex-shrink-0 shadow-sm group-hover:shadow-md transition-shadow`}>
+      <Icon className="w-5 h-5 text-white" />
+    </div>
+    <div>
+      <p className="text-2xl font-black text-slate-800 leading-tight">{value}</p>
+      <p className="text-xs text-slate-600 font-semibold mt-0.5">{label}</p>
+    </div>
+  </div>
+);
+
+// ─── Action button ────────────────────────────────────────────────────────────
+const ActionBtn: React.FC<{
+  onClick: () => void;
+  disabled?: boolean;
+  variant?: "primary" | "secondary" | "danger" | "success" | "ghost";
+  children: React.ReactNode;
+  size?: "sm" | "xs";
+}> = ({ onClick, disabled, variant = "secondary", children, size = "sm" }) => {
+  const variants = {
+    primary:   "bg-violet-600 hover:bg-violet-700 text-white shadow-sm shadow-violet-200/50 border border-violet-500/20",
+    secondary: "bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200",
+    danger:    "bg-red-50 hover:bg-red-100 text-red-700 border border-red-200/60",
+    success:   "bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200/60",
+    ghost:     "hover:bg-slate-100 text-slate-600 border border-transparent",
+  };
+  const sizes = {
+    sm: "px-3 py-1.5 text-xs font-semibold",
+    xs: "px-2.5 py-1 text-[11px] font-semibold",
+  };
+  return (
+    <button
+      onClick={onClick}
+      disabled={disabled}
+      className={`${variants[variant]} ${sizes[size]} rounded-lg transition-all duration-150 active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed whitespace-nowrap`}
+    >
+      {children}
+    </button>
+  );
+};
+
+// ─── Main component ────────────────────────────────────────────────────────────
 const AllJobs: React.FC = () => {
   const { t } = useTranslation();
   const navigate = useNavigate();
@@ -30,6 +143,7 @@ const AllJobs: React.FC = () => {
   const role = roleRaw ? String(roleRaw).toLowerCase().trim() : "";
   const isRoleReady = Boolean(role);
   const isUnfundedRoute = location.pathname === "/dashboard/jobs/unfunded";
+
   const [selectedJob, setSelectedJob] = useState<any>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [toggleStatus, { isLoading: isToggling }] = useToggleJobStatusMutation();
@@ -37,35 +151,62 @@ const AllJobs: React.FC = () => {
   const [selectedLocation, setSelectedLocation] = useState("");
   const [selectedStatus, setSelectedStatus] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("");
-  const [selectedCurrency, setSelectedCurrency] = useState("");
   const [selectedPaymentRange, setSelectedPaymentRange] = useState("");
   const [savedJobs, setSavedJobs] = useState<Set<string>>(new Set());
   const [reviewJob, { isLoading: isReviewingJob }] = useReviewJobMutation();
-  const jobsQueryParams =
-    {
-      ...(role === "employer" && isUnfundedRoute ? { funded: false } : {}),
-      ...(searchQuery ? { search: searchQuery } : {}),
-      ...(selectedLocation ? { location: selectedLocation } : {}),
-      ...(selectedStatus ? { status: selectedStatus as any } : {}),
-      ...(selectedCategory ? { category: selectedCategory } : {}),
-      ...(selectedCurrency ? { currency: selectedCurrency } : {}),
-      ...(selectedPaymentRange ? { payment_range: selectedPaymentRange } : {}),
-    };
+  const [openMenuId, setOpenMenuId] = useState<string | null>(null);
+  const [showFilters, setShowFilters] = useState(false);
+
+  const jobsQueryParams = {
+    ...(role === "employer" && isUnfundedRoute ? { funded: false } : {}),
+    ...(searchQuery ? { search: searchQuery } : {}),
+    ...(selectedLocation ? { location: selectedLocation } : {}),
+    ...(selectedStatus ? { status: selectedStatus as any } : {}),
+    ...(selectedCategory ? { category: selectedCategory } : {}),
+    ...(selectedPaymentRange ? { payment_range: selectedPaymentRange } : {}),
+  };
+
   const { data, isLoading, isFetching, error, refetch } = useGetAllJobsQuery(jobsQueryParams, {
     skip: !isRoleReady,
     refetchOnMountOrArgChange: true,
     refetchOnFocus: true,
     refetchOnReconnect: true,
   });
+
   const { data: studentApplications, refetch: refetchApplications } = useGetStudentApplicationsQuery(undefined, {
     skip: role !== "student",
   });
+
   useEffect(() => {
     if (!isRoleReady) return;
     refetch();
   }, [isRoleReady, isUnfundedRoute, refetch]);
-  
-  // Create a Set of job IDs the student has applied to
+
+  // Close dropdown on outside click - simplified
+  useEffect(() => {
+    if (!openMenuId) return; // Only listen if menu is open
+    
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as HTMLElement;
+      // Check if click is outside all menu-related elements
+      const isMenuClick = target.closest('[role="menu"]') || 
+                         target.closest('button[data-menu-trigger]');
+      if (!isMenuClick) {
+        setOpenMenuId(null);
+      }
+    };
+    
+    // Small delay to avoid immediately closing
+    const timer = setTimeout(() => {
+      document.addEventListener("click", handleClickOutside);
+    }, 0);
+    
+    return () => {
+      clearTimeout(timer);
+      document.removeEventListener("click", handleClickOutside);
+    };
+  }, [openMenuId]);
+
   const appliedJobIds = new Set(
     (studentApplications?.data || []).map((app: any) => app.job_id)
   );
@@ -74,43 +215,32 @@ const AllJobs: React.FC = () => {
   const isFundedJob = (fundingStatus?: string | null) =>
     fundingStatus === "Funded" || fundingStatus === "Paid";
 
-  // Backend now handles filtering; keep only route-level constraints.
   const filteredJobs = jobs.filter((job: any) => {
-    if ((role === "superadmin" || role === "admin") && isUnfundedRoute && isFundedJob(job.funding_status)) {
-      return false;
-    }
+    if (
+      (role === "superadmin" || role === "admin") &&
+      isUnfundedRoute &&
+      isFundedJob(job.funding_status)
+    ) return false;
     return true;
   });
 
-  // Get unique locations and statuses for filters
-  const locations = Array.from(
-    new Set(jobs.map((job: any) => job.location).filter(Boolean))
-  );
+  const locations = Array.from(new Set(jobs.map((j: any) => j.location).filter(Boolean)));
   const statuses = ["Active", "Pending", "Inactive", "Completed"];
-  const categories = Array.from(
-    new Set(jobs.map((job: any) => job.category).filter(Boolean))
-  );
-  const currencies = Array.from(
-    new Set(jobs.map((job: any) => job.currency || "USD").filter(Boolean))
-  );
+  const categories = Array.from(new Set(jobs.map((j: any) => j.category).filter(Boolean)));
 
-  // Calculate statistics
   const totalJobs = filteredJobs.length;
-  const activeJobs = filteredJobs.filter((job) => job.status === "Active").length;
-  const pendingJobs = role === "student"
-    ? (studentApplications?.data || []).filter((application: any) => application.status === "Pending").length
-    : filteredJobs.filter((job) => job.status === "Pending").length;
-  const totalApplicants = filteredJobs.reduce((sum, job) => sum + (job.applications || 0), 0);
+  const activeJobs = filteredJobs.filter((j: any) => j.status === "Active").length;
+  const pendingJobs =
+    role === "student"
+      ? (studentApplications?.data || []).filter((a: any) => a.status === "Pending").length
+      : filteredJobs.filter((j: any) => j.status === "Pending").length;
+  const totalApplicants = filteredJobs.reduce((sum: number, j: any) => sum + (j.applications || 0), 0);
 
   const toggleSaveJob = (jobId: string) => {
     setSavedJobs((prev) => {
-      const newSet = new Set(prev);
-      if (newSet.has(jobId)) {
-        newSet.delete(jobId);
-      } else {
-        newSet.add(jobId);
-      }
-      return newSet;
+      const next = new Set(prev);
+      next.has(jobId) ? next.delete(jobId) : next.add(jobId);
+      return next;
     });
   };
 
@@ -124,34 +254,15 @@ const AllJobs: React.FC = () => {
     setIsModalOpen(false);
     setSelectedJob(null);
     refetch();
-    // Refetch student applications to update applied status
-    if (role === "student") {
-      refetchApplications();
-    }
-  };
-
-
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case "Active":
-        return "bg-green-100 text-green-700";
-      case "Inactive":
-        return "bg-red-100 text-red-700";
-      case "Pending":
-        return "bg-orange-100 text-orange-700";
-      case "Completed":
-        return "bg-gray-100 text-gray-700";
-      default:
-        return "bg-gray-100 text-gray-700";
-    }
+    if (role === "student") refetchApplications();
   };
 
   const handleToggleStatus = async (jobId: string, _currentStatus: string) => {
     try {
       await toggleStatus(jobId).unwrap();
       refetch();
-    } catch (error: any) {
-      console.error("Failed to toggle job status:", error);
+    } catch (err) {
+      console.error("Failed to toggle job status:", err);
     }
   };
 
@@ -159,35 +270,75 @@ const AllJobs: React.FC = () => {
     try {
       await reviewJob({ id: jobId, status }).unwrap();
       refetch();
-    } catch (error) {
-      console.error("Failed to review unfunded job:", error);
+    } catch (err) {
+      console.error("Failed to review unfunded job:", err);
     }
   };
 
-  if (!isRoleReady || (isLoading && !data) || (isFetching && !data)) {
-    return <Loader />;
-  }
+  const hasActiveFilters =
+    searchQuery || selectedLocation || selectedStatus || selectedCategory || selectedPaymentRange;
 
-  if (error) {
+  // ── Loading ──────────────────────────────────────────────────────────────────
+  if (!isRoleReady || (isLoading && !data) || (isFetching && !data)) {
     return (
-      <div className="space-y-6 animate-fadeIn">
-        <div className="bg-red-50 border border-red-200 rounded-xl p-6">
-          <p className="text-red-800 font-medium">
-            {t("pages.jobs.failedToLoad")}
-          </p>
+      <div className="space-y-6 p-1">
+        <div className="flex items-center justify-between">
+          <div className="space-y-2">
+            <div className="h-8 w-48 bg-slate-100 rounded-xl animate-pulse" />
+            <div className="h-4 w-64 bg-slate-100 rounded-lg animate-pulse" />
+          </div>
+          <div className="h-10 w-32 bg-slate-100 rounded-xl animate-pulse" />
+        </div>
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+          {[...Array(4)].map((_, i) => (
+            <div key={i} className="h-20 bg-slate-100 rounded-2xl animate-pulse" />
+          ))}
+        </div>
+        <div className="h-14 bg-slate-100 rounded-2xl animate-pulse" />
+        <div className="space-y-4">
+          {[...Array(4)].map((_, i) => <SkeletonCard key={i} />)}
         </div>
       </div>
     );
   }
 
+  if (error) {
+    return (
+      <div className="flex flex-col items-center justify-center py-20 text-center">
+        <div className="w-16 h-16 rounded-2xl bg-red-50 border border-red-100 flex items-center justify-center mb-4">
+          <XCircleIcon className="w-8 h-8 text-red-400" />
+        </div>
+        <h3 className="text-lg font-bold text-slate-800 mb-1">Failed to load jobs</h3>
+        <p className="text-sm text-slate-500 mb-4">{t("pages.jobs.failedToLoad")}</p>
+        <button
+          onClick={() => refetch()}
+          className="flex items-center gap-2 px-4 py-2 rounded-xl bg-violet-600 text-white text-sm font-semibold hover:bg-violet-700 transition"
+        >
+          <ArrowPathIcon className="w-4 h-4" /> Retry
+        </button>
+      </div>
+    );
+  }
+
+  // ─── RENDER ───────────────────────────────────────────────────────────────────
   return (
-    <div className="space-y-6 animate-fadeIn">
+    <div className="space-y-6 pb-10">
+
+      {/* ── Header ────────────────────────────────────────────────────────────── */}
+      <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
         <div>
-          <h1 className="text-2xl md:text-4xl font-extrabold text-gray-900 flex items-center gap-2 md:gap-3">
-            <BriefcaseIcon className="h-6 w-6 md:h-10 md:w-10 text-purple-600" />
-            {isUnfundedRoute ? "Unfunded Jobs" : t("pages.jobs.allJobs")}
-          </h1>
-          <p className="text-sm md:text-base text-gray-500 mt-2">
+          <div className="flex items-center gap-3 mb-2">
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-violet-600 to-purple-700 flex items-center justify-center shadow-lg shadow-violet-200/50">
+              <BriefcaseIcon className="w-5 h-5 text-white" />
+            </div>
+            <h1 className="text-3xl font-black text-slate-800 tracking-tight">
+              {isUnfundedRoute ? "Unfunded Jobs" : t("pages.jobs.allJobs")}
+            </h1>
+            {isFetching && data && (
+              <ArrowPathIcon className="w-5 h-5 text-violet-500 animate-spin ml-2" />
+            )}
+          </div>
+          <p className="text-sm text-slate-600 font-medium ml-[52px]">
             {role === "employer"
               ? t("pages.jobs.managePostings")
               : role === "student"
@@ -196,133 +347,192 @@ const AllJobs: React.FC = () => {
           </p>
         </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-2"> 
-  <div className="bg-purple-50 rounded-xl p-4 border border-purple-200 hover:shadow-sm transition-shadow">
-    <p className="text-xs uppercase tracking-wider text-purple-700 font-semibold">{t("pages.jobs.totalJobs")}</p>
-          <p className="text-2xl font-bold text-purple-900 mt-1">{totalJobs}</p>
-        </div>
-  <div className="bg-orange-50 rounded-xl p-4 border border-orange-200 hover:shadow-sm transition-shadow">
-    <p className="text-xs uppercase tracking-wider text-orange-700 font-semibold">{t("pages.jobs.activeJobs")}</p>
-    <p className="text-2xl font-bold text-orange-900 mt-1">{activeJobs}</p>
-        </div>
-  <div className="bg-green-50 rounded-xl p-4 border border-green-200 hover:shadow-sm transition-shadow">
-    <p className="text-xs uppercase tracking-wider text-green-700 font-semibold">{t("pages.jobs.totalApplicants")}</p>
- <p className="text-2xl font-bold text-green-900 mt-1">            {totalApplicants}
-          </p>
-        </div>
-  <div className="bg-red-50 rounded-xl p-4 border border-red-200 hover:shadow-sm transition-shadow">
-    <p className="text-xs uppercase tracking-wider text-red-700 font-semibold">{t("pages.jobs.pendingReview")}</p>
-    <p className="text-2xl font-bold text-red-900 mt-1">{pendingJobs}</p>
-        </div>
+        {(role === "employer" || role === "superadmin") && (
+          <button
+            onClick={() => navigate("/dashboard/jobs/create")}
+            className="flex items-center gap-2.5 px-4 py-3 rounded-lg bg-gradient-to-r from-violet-600 to-purple-600 hover:from-violet-700 hover:to-purple-700 text-white text-sm font-bold shadow-lg shadow-violet-200/50 transition-all active:scale-95 whitespace-nowrap"
+          >
+            <PlusIcon className="w-5 h-5" />
+            Post a Job
+          </button>
+        )}
       </div>
 
-      {/* Search and Filter Bar */}
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-2 md:p-3">
-        <div className="flex flex-col sm:flex-row gap-2 md:gap-3">
-          {/* Search Input */}
-          <div className="flex-1 relative">
-            <MagnifyingGlassIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4  text-gray-400" />
+      {/* ── Stats ─────────────────────────────────────────────────────────────── */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        <StatTile label={t("pages.jobs.totalJobs")}       value={totalJobs}       icon={BriefcaseIcon}  color="bg-violet-500" bg="bg-violet-50/60" />
+        <StatTile label={t("pages.jobs.activeJobs")}      value={activeJobs}      icon={CheckCircleIcon} color="bg-emerald-500" bg="bg-emerald-50/60" />
+        <StatTile label={t("pages.jobs.totalApplicants")} value={totalApplicants} icon={UserGroupIcon}  color="bg-sky-500"    bg="bg-sky-50/60"    />
+        <StatTile label={t("pages.jobs.pendingReview")}   value={pendingJobs}     icon={ChartBarIcon}   color="bg-amber-500"  bg="bg-amber-50/60"  />
+      </div>
+
+      {/* ── Control bar ───────────────────────────────────────────────────────── */}
+      <div className="bg-white rounded-2xl border border-slate-100 shadow-sm hover:shadow-md transition-shadow overflow-hidden">
+        {/* Main row */}
+        <div className="flex items-center gap-2.5 p-4">
+          {/* Search */}
+          <div className="flex-1 relative min-w-0">
+            <MagnifyingGlassIcon className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
             <input
               type="text"
               placeholder={t("pages.jobs.searchJobs")}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-className="w-full pl-9 pr-4 py-1.5 md:py-2 text-xs md:text-sm border border-gray-200 rounded-md focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all outline-none"            />
+              className="w-full pl-10 pr-4 h-10 text-sm rounded-lg border border-slate-200 bg-slate-50 focus:bg-white text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-violet-500/30 focus:border-violet-400 transition-all"
+            />
           </div>
 
-          {/* Location Filter */}
-          <div className="relative sm:w-48">
-            <MapPinIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 md:h-5 md:w-5 text-gray-400" />
-            <select
-              value={selectedLocation}
-              onChange={(e) => setSelectedLocation(e.target.value)}
-className="w-full pl-9 pr-8 py-1.5 md:py-2 text-xs md:text-sm border border-gray-200 rounded-md focus:ring-2 focus:ring-purple-500 focus:border-transparent appearance-none bg-white cursor-pointer transition-all outline-none"            >
-              <option value="">{t("pages.jobs.allLocations")}</option>
-              {locations.map((location: string) => (
-                <option key={location} value={location}>
-                  {location}
-                </option>
-              ))}
-            </select>
+          {/* Status quick pills — desktop */}
+          <div className="hidden md:flex items-center gap-1.5">
+            {["", ...statuses].map((s) => (
+              <button
+                key={s}
+                onClick={() => setSelectedStatus(s)}
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all duration-150 whitespace-nowrap ${
+                  selectedStatus === s
+                    ? "bg-violet-600 text-white shadow-sm shadow-violet-200/50"
+                    : "bg-slate-100 text-slate-600 hover:bg-slate-200 border border-slate-200/50"
+                }`}
+              >
+                {s || "All"}
+              </button>
+            ))}
           </div>
 
-          {/* Status Filter */}
-          <div className="relative sm:w-48">
-            <select
-              value={selectedStatus}
-              onChange={(e) => setSelectedStatus(e.target.value)}
-className="w-full pl-9 pr-8 py-1.5 md:py-2 text-xs md:text-sm border border-gray-200 rounded-md focus:ring-2 focus:ring-purple-500 focus:border-transparent appearance-none bg-white cursor-pointer transition-all outline-none"            >
-              <option value="">{t("pages.jobs.allStatus")}</option>
-              {statuses.map((status: string) => (
-                <option key={status} value={status}>
-                  {status}
-                </option>
-              ))}
-            </select>
-          </div>
+          {/* Filters toggle */}
+          <button
+            onClick={() => setShowFilters((p) => !p)}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold border transition-all duration-150 ${
+              showFilters || hasActiveFilters
+                ? "bg-violet-50 border-violet-300 text-violet-700"
+                : "bg-slate-100 border-slate-200 text-slate-600 hover:bg-slate-200"
+            }`}
+          >
+            <FunnelIcon className="w-4 h-4" />
+            Filters
+            {hasActiveFilters && (
+              <span className="w-2 h-2 rounded-full bg-violet-600 ml-1" />
+            )}
+            <ChevronDownIcon
+              className={`w-3.5 h-3.5 transition-transform duration-200 ${showFilters ? "rotate-180" : ""}`}
+            />
+          </button>
+        </div>
 
-          <div className="relative sm:w-48">
+        {/* Expanded filter row */}
+        {showFilters && (
+          <div className="border-t border-slate-100 px-4 py-3.5 bg-slate-50/80 flex flex-wrap gap-3">
+            {/* Location */}
+            <div className="relative">
+              <MapPinIcon className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400 pointer-events-none" />
+              <select
+                value={selectedLocation}
+                onChange={(e) => setSelectedLocation(e.target.value)}
+                className="h-9 pl-8 pr-8 rounded-lg border border-slate-200 bg-white text-xs font-medium text-slate-700 focus:outline-none focus:ring-2 focus:ring-violet-500/30 focus:border-violet-400 appearance-none cursor-pointer"
+              >
+                <option value="">{t("pages.jobs.allLocations")}</option>
+                {(locations as string[]).map((l) => (
+                  <option key={l} value={l}>{l}</option>
+                ))}
+              </select>
+            </div>
+
+            {/* Category */}
             <select
               value={selectedCategory}
               onChange={(e) => setSelectedCategory(e.target.value)}
-              className="w-full pl-3 pr-8 py-1.5 md:py-2 text-xs md:text-sm border border-gray-200 rounded-md focus:ring-2 focus:ring-purple-500 focus:border-transparent appearance-none bg-white cursor-pointer transition-all outline-none"
+              className="h-9 px-3 rounded-lg border border-slate-200 bg-white text-xs font-medium text-slate-700 focus:outline-none focus:ring-2 focus:ring-violet-500/30 focus:border-violet-400 cursor-pointer"
             >
               <option value="">All Categories</option>
-              {categories.map((category: string) => (
-                <option key={category} value={category}>
-                  {category}
-                </option>
+              {(categories as string[]).map((c) => (
+                <option key={c} value={c}>{c}</option>
               ))}
             </select>
-          </div>
 
-          <div className="relative sm:w-48">
-            <select
-              value={selectedCurrency}
-              onChange={(e) => setSelectedCurrency(e.target.value)}
-              className="w-full pl-3 pr-8 py-1.5 md:py-2 text-xs md:text-sm border border-gray-200 rounded-md focus:ring-2 focus:ring-purple-500 focus:border-transparent appearance-none bg-white cursor-pointer transition-all outline-none"
-            >
-              <option value="">All Currencies</option>
-              {currencies.map((currency: string) => (
-                <option key={currency} value={currency}>
-                  {currency}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div className="relative sm:w-48">
+            {/* Payment */}
             <select
               value={selectedPaymentRange}
               onChange={(e) => setSelectedPaymentRange(e.target.value)}
-              className="w-full pl-3 pr-8 py-1.5 md:py-2 text-xs md:text-sm border border-gray-200 rounded-md focus:ring-2 focus:ring-purple-500 focus:border-transparent appearance-none bg-white cursor-pointer transition-all outline-none"
+              className="h-9 px-3 rounded-lg border border-slate-200 bg-white text-xs font-medium text-slate-700 focus:outline-none focus:ring-2 focus:ring-violet-500/30 focus:border-violet-400 cursor-pointer"
             >
-              <option value="">All Payments</option>
+              <option value="">All Budgets</option>
               <option value="under-500">Under 500</option>
-              <option value="500-2000">500 - 2,000</option>
-              <option value="2000-5000">2,000 - 5,000</option>
+              <option value="500-2000">500 – 2,000</option>
+              <option value="2000-5000">2,000 – 5,000</option>
               <option value="5000-plus">Above 5,000</option>
             </select>
+
+            {/* Mobile status */}
+            <select
+              value={selectedStatus}
+              onChange={(e) => setSelectedStatus(e.target.value)}
+              className="md:hidden h-9 px-3 rounded-lg border border-slate-200 bg-white text-xs font-medium text-slate-700 focus:outline-none focus:ring-2 focus:ring-violet-500/30 focus:border-violet-400 cursor-pointer"
+            >
+              <option value="">{t("pages.jobs.allStatus")}</option>
+              {statuses.map((s) => <option key={s} value={s}>{s}</option>)}
+            </select>
+
+            {/* Clear */}
+            {hasActiveFilters && (
+              <button
+                onClick={() => {
+                  setSearchQuery("");
+                  setSelectedLocation("");
+                  setSelectedStatus("");
+                  setSelectedCategory("");
+                  setSelectedPaymentRange("");
+                }}
+                className="h-9 px-4 rounded-lg border border-red-200/60 bg-red-50 text-xs text-red-700 font-bold hover:bg-red-100 transition-colors duration-150"
+              >
+                Clear all
+              </button>
+            )}
           </div>
-        </div>
+        )}
       </div>
 
+      {/* ── Empty state ───────────────────────────────────────────────────────── */}
       {filteredJobs.length === 0 ? (
-        <div className="bg-white rounded-xl p-12 shadow-md border border-gray-100 text-center">
-          <BriefcaseIcon className="h-16 w-16 text-gray-400 mx-auto mb-4" />
-          <h3 className="text-xl font-semibold text-gray-900 mb-2">
-            {searchQuery || selectedLocation || selectedStatus || selectedCategory || selectedCurrency || selectedPaymentRange
-              ? t("pages.jobs.noJobsMatching")
-              : t("pages.jobs.noJobsAvailable")}
+        <div className="bg-white rounded-2xl border border-slate-100 shadow-sm flex flex-col items-center justify-center py-20 px-6 text-center">
+          <div className="w-20 h-20 rounded-2xl bg-violet-50 border border-violet-100 flex items-center justify-center mb-5">
+            <BriefcaseIcon className="w-10 h-10 text-violet-300" />
+          </div>
+          <h3 className="text-lg font-black text-slate-800 mb-2">
+            {hasActiveFilters ? t("pages.jobs.noJobsMatching") : t("pages.jobs.noJobsAvailable")}
           </h3>
-          <p className="text-gray-600">
-            {searchQuery || selectedLocation || selectedStatus || selectedCategory || selectedCurrency || selectedPaymentRange
+          <p className="text-sm text-slate-500 max-w-xs mb-6">
+            {hasActiveFilters
               ? t("pages.jobs.tryAdjusting")
               : t("pages.jobs.noPostingsCheckBack")}
           </p>
+          {hasActiveFilters ? (
+            <button
+              onClick={() => {
+                setSearchQuery(""); setSelectedLocation(""); setSelectedStatus("");
+                setSelectedCategory(""); setSelectedPaymentRange("");
+              }}
+              className="px-5 py-2.5 rounded-xl bg-slate-100 text-slate-700 text-sm font-semibold hover:bg-slate-200 transition"
+            >
+              Clear filters
+            </button>
+          ) : (role === "employer" || role === "superadmin") ? (
+            <button
+              onClick={() => navigate("/dashboard/jobs/create")}
+              className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-violet-600 text-white text-sm font-bold shadow-md shadow-violet-200 hover:bg-violet-700 transition active:scale-95"
+            >
+              <PlusIcon className="w-4 h-4" /> Post Your First Job
+            </button>
+          ) : null}
         </div>
       ) : (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        /* ── Job cards ──────────────────────────────────────────────────────── */
+        <div className="space-y-3">
+          {/* Results count */}
+          <p className="text-xs text-slate-500 font-medium px-1">
+            Showing <span className="font-bold text-slate-700">{filteredJobs.length}</span> job{filteredJobs.length !== 1 ? "s" : ""}
+            {hasActiveFilters && " · filtered"}
+          </p>
+
           {filteredJobs.map((job: any) => {
             const employerName = job.employer?.full_name || t("pages.jobs.unknownEmployer");
             const companyInitial = employerName.charAt(0).toUpperCase();
@@ -330,212 +540,280 @@ className="w-full pl-9 pr-8 py-1.5 md:py-2 text-xs md:text-sm border border-gray
             const isCompletedJob = job.status === "Completed";
             const hasAlreadyApplied = appliedJobIds.has(job.job_id);
             const isApplyDisabled = hasAlreadyApplied || isCompletedJob;
+            const statusCfg = getStatusCfg(job.status);
+
+            // Gradient avatar color — deterministic from initials
+            const avatarGradients = [
+              "from-violet-500 to-violet-700",
+              "from-sky-500 to-sky-700",
+              "from-emerald-500 to-teal-600",
+              "from-amber-500 to-orange-600",
+              "from-pink-500 to-rose-600",
+            ];
+            const gradIdx = companyInitial.charCodeAt(0) % avatarGradients.length;
 
             return (
               <div
                 key={job.job_id}
-                className="bg-white rounded-lg shadow-sm border border-gray-200 hover:shadow-md transition-all duration-200 p-4 md:p-5"
+                className="group bg-white rounded-2xl border border-slate-100 hover:border-violet-200 shadow-sm hover:shadow-lg hover:shadow-violet-100/40 transition-all duration-250 overflow-hidden"
               >
-                <div className="flex flex-col md:flex-row gap-4">
-                  {/* Company Logo and Title Section */}
-                  <div className="flex gap-3 md:gap-4 flex-1 min-w-0">
-                    {/* Company Logo */}
+                {/* Unfunded accent stripe */}
+                {!isFundedJob(job.funding_status) && (
+                  <div className="h-1 w-full bg-gradient-to-r from-orange-400 via-amber-400 to-orange-300" />
+                )}
+
+                <div className="p-5">
+                  <div className="flex gap-4">
+                    {/* Avatar */}
                     <div className="flex-shrink-0">
-                      <div className="h-12 w-12 md:h-16 md:w-16 rounded-lg bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white font-bold text-lg md:text-xl shadow-md">
+                      <div
+                        className={`w-12 h-12 rounded-xl bg-gradient-to-br ${avatarGradients[gradIdx]} flex items-center justify-center text-white font-black text-lg shadow-md`}
+                      >
                         {companyInitial}
                       </div>
                     </div>
 
-                    {/* Job Details */}
+                    {/* Main content */}
                     <div className="flex-1 min-w-0">
-                      <div className="flex items-start justify-between mb-2 gap-2">
+                      {/* Title row */}
+                      <div className="flex items-start justify-between gap-3 mb-2">
                         <div className="flex-1 min-w-0">
-                          <div className="flex flex-col sm:flex-row sm:items-center gap-2 mb-1">
+                          <div className="flex flex-wrap items-center gap-2 mb-1">
                             <h3
                               onClick={() => navigate(`/dashboard/jobs/${job.job_id}`)}
-                              className="text-base md:text-lg font-semibold text-blue-600 hover:text-blue-800 cursor-pointer break-words"
+                              className="text-base font-bold text-slate-800 hover:text-violet-700 cursor-pointer transition-colors truncate"
                             >
                               {job.job_title}
                             </h3>
+                            {/* Status badge */}
                             <span
-                              className={`px-2 py-0.5 rounded-full text-xs font-semibold whitespace-nowrap ${getStatusColor(
-                                job.status
-                              )}`}
+                              className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold tracking-wide ${statusCfg.bg} ${statusCfg.text} border border-current/10`}
                             >
-                              {job.status}
+                              <span className={`w-1.5 h-1.5 rounded-full ${statusCfg.dot} animate-pulse`} />
+                              {statusCfg.label}
                             </span>
+                            <FundingBadge status={job.funding_status} />
                           </div>
-                          <p className="text-sm md:text-base text-gray-700 font-medium mb-2 truncate">
-                            {employerName}
-                          </p>
+                          <p className="text-xs font-medium text-slate-500 truncate">{employerName}</p>
                         </div>
-                        {/* Only show bookmark for students */}
+
+                        {/* Bookmark (students) */}
                         {role === "student" && (
                           <button
                             onClick={() => toggleSaveJob(job.job_id)}
-                            className="flex-shrink-0 p-2 hover:bg-gray-100 rounded-full transition"
                             title={isSaved ? t("pages.jobs.removeFromSaved") : t("pages.jobs.saveJob")}
+                            className="flex-shrink-0 p-1.5 rounded-lg hover:bg-slate-100 transition-colors duration-200"
                           >
                             {isSaved ? (
-                              <BookmarkSolidIcon className="h-5 w-5 text-blue-600" />
+                              <BookmarkSolidIcon className="w-5 h-5 text-violet-600" />
                             ) : (
-                              <BookmarkIcon className="h-5 w-5 text-gray-400" />
+                              <BookmarkIcon className="w-5 h-5 text-slate-400 group-hover:text-slate-600 transition-colors" />
                             )}
                           </button>
                         )}
                       </div>
 
-                      {/* Job Info Row */}
-                      <div className="flex flex-wrap gap-2 md:gap-4 text-xs md:text-sm text-gray-600 mb-3">
+                      {/* Meta row */}
+                      <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-xs text-slate-600 font-medium mb-3.5">
+                        {job.location && (
+                          <span className="flex items-center gap-1">
+                            <MapPinIcon className="w-3.5 h-3.5" />
+                            {job.location}
+                          </span>
+                        )}
                         <span className="flex items-center gap-1">
-                          <MapPinIcon className="h-3 w-3 md:h-4 md:w-4" />
-                          <span className="truncate">{job.location}</span>
-                        </span>
-                        <span className="flex items-center gap-1">
-                          <CurrencyDollarIcon className="h-3 w-3 md:h-4 md:w-4" />
-                          <span className="truncate">{formatBudgetWithCurrency(job.budget, job.currency || "USD")}</span>
+                          <CurrencyDollarIcon className="w-3.5 h-3.5" />
+                          {formatBudgetWithCurrency(job.budget, job.currency || "USD")}
                         </span>
                         {job.duration && (
                           <span className="flex items-center gap-1">
-                            <BriefcaseIcon className="h-3 w-3 md:h-4 md:w-4" />
-                            <span className="truncate">{job.duration}</span>
+                            <ClockIcon className="w-3.5 h-3.5" />
+                            {job.duration}
                           </span>
                         )}
                         {job.created_at && (
-                          <span className="flex items-center gap-1">
-                            <ClockIcon className="h-3 w-3 md:h-4 md:w-4" />
-                            <span className="truncate">{t("pages.jobs.posted")} {formatRelativeTime(job.created_at)}</span>
+                          <span className="flex items-center gap-1 text-slate-400">
+                            <ClockIcon className="w-3 h-3" />
+                            {t("pages.jobs.posted")} {formatRelativeTime(job.created_at)}
                           </span>
                         )}
                       </div>
 
-                      {/* Job Description Preview */}
+                      {/* Description preview */}
                       {job.description && (
-                        <p className="text-gray-600 text-xs md:text-sm mb-3 line-clamp-2">
+                        <p className="text-xs text-slate-600 line-clamp-2 mb-3 leading-relaxed font-medium">
                           {job.description}
                         </p>
                       )}
 
-                      {/* Skills/Tags */}
-                      <div className="flex flex-wrap gap-2 mb-3">
+                      {/* Tags row */}
+                      <div className="flex flex-wrap items-center gap-2 mb-4">
                         {job.category && (
-                          <span className="px-2 md:px-3 py-1 bg-blue-50 text-blue-700 rounded-full text-xs font-medium">
+                          <span className="px-2.5 py-1 rounded-lg bg-violet-50 text-violet-700 text-[10px] font-bold border border-violet-200/50">
                             {job.category}
                           </span>
                         )}
                         {job.employment_type && (
-                          <span className="px-2 md:px-3 py-1 bg-green-50 text-green-700 rounded-full text-xs font-medium">
+                          <span className="px-2.5 py-1 rounded-lg bg-sky-50 text-sky-700 text-[10px] font-bold border border-sky-200/50">
                             {job.employment_type}
                           </span>
                         )}
                         {job.experience_level && (
-                          <span className="px-2 md:px-3 py-1 bg-purple-50 text-purple-700 rounded-full text-xs font-medium">
+                          <span className="px-2.5 py-1 rounded-lg bg-slate-100 text-slate-700 text-[10px] font-bold border border-slate-200/50">
                             {job.experience_level}
                           </span>
                         )}
-                        <span className="px-2 md:px-3 py-1 bg-gray-100 text-gray-700 rounded-full text-xs font-medium">
+                        <span className="px-2.5 py-1 rounded-lg bg-slate-100 text-slate-700 text-[10px] font-bold border border-slate-200/50 flex items-center gap-1.5">
+                          <UserGroupIcon className="w-3 h-3" />
                           {job.applications || 0} {t("pages.jobs.applicants")}
                         </span>
                       </div>
-                    </div>
-                  </div>
 
-                  {/* Action Buttons */}
-                  <div className="flex flex-col sm:flex-row md:flex-col gap-1.5 md:ml-4 md:flex-shrink-0">
-                    {role === "student" ? (
-                      <div className="relative group flex-1 sm:flex-none">
-                        <button
-                          onClick={() => !isApplyDisabled && handleApply(job)}
-                          disabled={isApplyDisabled}
-className={`w-full px-3 md:px-4 py-1.5 md:py-2 rounded-md font-medium transition shadow-sm whitespace-nowrap text-xs md:text-sm cursor-pointer ${                          isApplyDisabled
-                              ? "bg-gray-400 text-white cursor-not-allowed"
-                              : "bg-blue-600 hover:bg-blue-700 text-white"
-                          }`}
-                        >
-                          {hasAlreadyApplied
-                            ? t("pages.jobs.applied")
-                            : isCompletedJob
-                            ? t("pages.jobs.completed", { defaultValue: "Completed" })
-                            : t("pages.jobs.applyNow")}
-                        </button>
-                        {isCompletedJob && (
-                          <div className="pointer-events-none absolute left-1/2 top-full z-10 mt-2 w-56 -translate-x-1/2 rounded-md bg-gray-900 px-3 py-2 text-center text-xs text-white opacity-0 shadow-lg transition-opacity duration-200 group-hover:opacity-100">
-                            {t("pages.jobs.completedNoApplyMessage", {
-                              defaultValue: "This job is already completed, so applications are closed.",
-                            })}
+                      {/* Action buttons */}
+                      <div className="flex flex-wrap items-center gap-2 pt-1">
+                        {role === "student" ? (
+                          <div className="relative group/apply">
+                            <button
+                              onClick={() => !isApplyDisabled && handleApply(job)}
+                              disabled={isApplyDisabled}
+                              className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all active:scale-95 ${
+                                isApplyDisabled
+                                  ? "bg-slate-100 text-slate-400 cursor-not-allowed"
+                                  : "bg-violet-600 hover:bg-violet-700 text-white shadow-sm shadow-violet-200"
+                              }`}
+                            >
+                              {hasAlreadyApplied
+                                ? "✓ Applied"
+                                : isCompletedJob
+                                ? t("pages.jobs.completed", { defaultValue: "Completed" })
+                                : t("pages.jobs.applyNow")}
+                            </button>
+                            {isCompletedJob && (
+                              <div className="pointer-events-none absolute left-1/2 bottom-full mb-2 -translate-x-1/2 w-52 rounded-xl bg-slate-900 px-3 py-2 text-center text-xs text-white opacity-0 shadow-xl transition-opacity duration-200 group-hover/apply:opacity-100">
+                                {t("pages.jobs.completedNoApplyMessage", {
+                                  defaultValue: "Applications are closed for this job.",
+                                })}
+                              </div>
+                            )}
                           </div>
+                        ) : (
+                          <>
+                            {/* View */}
+                            <ActionBtn onClick={() => navigate(`/dashboard/jobs/${job.job_id}`)}>
+                              {t("pages.jobs.viewDetails")}
+                            </ActionBtn>
+
+                            {(role === "employer" || (role === "superadmin" && !isUnfundedRoute)) && (
+                              <>
+                                <ActionBtn
+                                  onClick={() => navigate(`/dashboard/jobs/${job.job_id}/tasks`)}
+                                  variant="secondary"
+                                >
+                                  Tasks
+                                </ActionBtn>
+                                <ActionBtn
+                                  onClick={() => navigate(`/dashboard/jobs/${job.job_id}/applications`)}
+                                  variant="primary"
+                                >
+                                  Applications
+                                  <span className="ml-1 px-1.5 py-0.5 rounded-full bg-white/20 text-[10px] font-black">
+                                    {job.applications || 0}
+                                  </span>
+                                </ActionBtn>
+                                {(job.status === "Active" || job.status === "Inactive") && (
+                                  <ActionBtn
+                                    onClick={() => handleToggleStatus(job.job_id, job.status)}
+                                    disabled={isToggling}
+                                    variant={job.status === "Active" ? "danger" : "success"}
+                                  >
+                                    {isToggling
+                                      ? t("pages.jobs.updating")
+                                      : job.status === "Active"
+                                      ? t("pages.jobs.deactivate")
+                                      : t("pages.jobs.activate")}
+                                  </ActionBtn>
+                                )}
+
+                                {/* More menu */}
+                                <div className="relative group">
+                                  <button
+                                    data-menu-trigger
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setOpenMenuId(openMenuId === job.job_id ? null : job.job_id);
+                                    }}
+                                    className={`w-9 h-9 rounded-lg flex items-center justify-center transition-all duration-200 ${
+                                      openMenuId === job.job_id
+                                        ? "bg-violet-100 text-violet-600 shadow-md shadow-violet-100/50"
+                                        : "bg-slate-100 hover:bg-slate-200 text-slate-500 hover:text-slate-700"
+                                    }`}
+                                  >
+                                    <EllipsisHorizontalIcon className="w-5 h-5" />
+                                  </button>
+                                  {openMenuId === job.job_id && (
+                                    <div
+                                      role="menu"
+                                      onClick={(e) => e.stopPropagation()}
+                                      className="absolute right-0 top-full mt-2 w-44 bg-white rounded-xl border border-slate-200 shadow-lg shadow-slate-900/10 z-30 overflow-hidden opacity-100 scale-100 origin-top-right transition-all duration-150"
+                                    >
+                                      {/* Menu header */}
+                                      <div className="px-3 py-2.5 border-b border-slate-100 bg-gradient-to-r from-violet-50 to-transparent">
+                                        <p className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Actions</p>
+                                      </div>
+                                      
+                                      {/* Edit action */}
+                                      <button
+                                        onClick={() => {
+                                          navigate(`/dashboard/jobs/${job.job_id}/edit`);
+                                          setOpenMenuId(null);
+                                        }}
+                                        className="w-full text-left px-3 py-2.5 text-xs font-semibold text-slate-700 hover:bg-violet-50 hover:text-violet-700 transition-colors duration-150 flex items-center gap-2 group/item"
+                                      >
+                                        <span className="text-sm">✏️</span> Edit Job
+                                      </button>
+                                      
+                                      {/* Divider */}
+                                      <div className="my-1 border-t border-slate-100" />
+                                      
+                                      {/* Additional actions placeholder */}
+                                      <button
+                                        onClick={() => {
+                                          navigate(`/dashboard/jobs/${job.job_id}`);
+                                          setOpenMenuId(null);
+                                        }}
+                                        className="w-full text-left px-3 py-2.5 text-xs font-semibold text-slate-700 hover:bg-sky-50 hover:text-sky-700 transition-colors duration-150 flex items-center gap-2"
+                                      >
+                                        <span className="text-sm">👁️</span> View Details
+                                      </button>
+                                    </div>
+                                  )}
+                                </div>
+                              </>
+                            )}
+
+                            {/* Admin review (unfunded route) */}
+                            {(role === "admin" || role === "superadmin") && isUnfundedRoute && (
+                              <>
+                                <ActionBtn
+                                  onClick={() => handleAdminReview(job.job_id, "Active")}
+                                  disabled={isReviewingJob}
+                                  variant="success"
+                                >
+                                  ✓ Approve
+                                </ActionBtn>
+                                <ActionBtn
+                                  onClick={() => handleAdminReview(job.job_id, "Inactive")}
+                                  disabled={isReviewingJob}
+                                  variant="danger"
+                                >
+                                  ✕ Disapprove
+                                </ActionBtn>
+                              </>
+                            )}
+                          </>
                         )}
                       </div>
-                    ) : (
-                      <>
-                        <button
-                          onClick={() => navigate(`/dashboard/jobs/${job.job_id}`)}
-className="px-3 md:px-4 py-1.5 md:py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md font-medium transition shadow-sm whitespace-nowrap text-xs md:text-sm flex-1 sm:flex-none cursor-pointer"                        >
-                          {t("pages.jobs.viewDetails")}
-                        </button>
-                        {(role === "employer" || (role === "superadmin" && !isUnfundedRoute)) && (
-                          <>
-                            <button
-                              onClick={() =>
-                                navigate(`/dashboard/jobs/${job.job_id}/tasks`)
-                              }
-className="px-3 md:px-4 py-1.5 md:py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-md font-medium transition shadow-sm whitespace-nowrap text-xs md:text-sm flex-1 sm:flex-none cursor-pointer"                            >
-                              Manage Tasks
-                            </button>
-                            <button
-                              onClick={() =>
-                                navigate(`/dashboard/jobs/${job.job_id}/applications`)
-                              }
-className="px-3 md:px-4 py-1.5 md:py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-md font-medium transition shadow-sm whitespace-nowrap text-xs md:text-sm flex-1 sm:flex-none cursor-pointer"                            >
-                              Manage Applications ({job.applications || 0})
-                            </button>
-                            {(job.status === "Active" || job.status === "Inactive") && (
-                              <button
-                                onClick={() => handleToggleStatus(job.job_id, job.status)}
-                                disabled={isToggling}
-className={`px-3 md:px-4 py-1.5 md:py-2 rounded-md font-medium transition shadow-sm whitespace-nowrap text-xs md:text-sm flex-1 sm:flex-none cursor-pointer ${                                  job.status === "Active"
-                                    ? "bg-orange-600 hover:bg-orange-700 text-white"
-                                    : job.status === "Pending"
-                                    ? "bg-green-600 hover:bg-green-700 text-white"
-                                    : "bg-green-600 hover:bg-green-700 text-white"
-                                } disabled:opacity-50 disabled:cursor-not-allowed`}
-                              >
-                                {isToggling
-                                  ? t("pages.jobs.updating")
-                                  : job.status === "Active"
-                                  ? t("pages.jobs.deactivate")
-                                  : t("pages.jobs.activate")}
-                              </button>
-                            )}
-                            <button
-                              onClick={() =>
-                                navigate(`/dashboard/jobs/${job.job_id}/edit`)
-                              }
-className="px-3 md:px-4 py-1.5 md:py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-md font-medium transition shadow-sm whitespace-nowrap text-xs md:text-sm flex-1 sm:flex-none border border-gray-200 cursor-pointer"                            >
-                              {t("common.edit")}
-                            </button>
-                          </>
-                        )}
-                        {(role === "admin" || role === "superadmin") && isUnfundedRoute && (
-                          <>
-                            <button
-                              onClick={() => handleAdminReview(job.job_id, "Active")}
-                              disabled={isReviewingJob}
-                              className="px-3 md:px-4 py-1.5 md:py-2 bg-green-600 hover:bg-green-700 text-white rounded-md font-medium transition shadow-sm whitespace-nowrap text-xs md:text-sm flex-1 sm:flex-none disabled:opacity-50"
-                            >
-                              Approve
-                            </button>
-                            <button
-                              onClick={() => handleAdminReview(job.job_id, "Inactive")}
-                              disabled={isReviewingJob}
-                              className="px-3 md:px-4 py-1.5 md:py-2 bg-red-600 hover:bg-red-700 text-white rounded-md font-medium transition shadow-sm whitespace-nowrap text-xs md:text-sm flex-1 sm:flex-none disabled:opacity-50"
-                            >
-                              Disapprove
-                            </button>
-                          </>
-                        )}
-                      </>
-                    )}
+                    </div>
                   </div>
                 </div>
               </div>
@@ -544,7 +822,7 @@ className="px-3 md:px-4 py-1.5 md:py-2 bg-gray-100 hover:bg-gray-200 text-gray-7
         </div>
       )}
 
-      {/* Apply Job Modal */}
+      {/* Apply modal */}
       {selectedJob && (
         <ApplyJobModal
           job={selectedJob}
