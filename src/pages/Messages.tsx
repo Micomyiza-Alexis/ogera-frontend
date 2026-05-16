@@ -3,7 +3,7 @@ import { useSelector } from 'react-redux';
 import { skipToken } from '@reduxjs/toolkit/query/react';
 import { useSearchParams } from 'react-router-dom';
 import toast from 'react-hot-toast';
-import { ArrowPathIcon } from '@heroicons/react/24/outline';
+import { ArrowLeftIcon } from '@heroicons/react/24/outline';
 import ConversationList from '@/components/Messages/ConversationList';
 import ChatWindow from '@/components/Messages/ChatWindow';
 import {
@@ -33,9 +33,9 @@ const dedupeMessages = (items: IMessage[]) => {
 
 const sortConversations = (items: IConversation[]) =>
   [...items].sort((a, b) => {
-    const left = a.last_message_at || a.created_at;
-    const right = b.last_message_at || b.created_at;
-    return new Date(right).getTime() - new Date(left).getTime();
+    const l = a.last_message_at || a.created_at;
+    const r = b.last_message_at || b.created_at;
+    return new Date(r).getTime() - new Date(l).getTime();
   });
 
 const Messages: React.FC = () => {
@@ -55,6 +55,8 @@ const Messages: React.FC = () => {
   const [presenceByUserId, setPresenceByUserId] = useState<
     Record<string, { is_online: boolean; last_seen_at?: string | null }>
   >({});
+  // Mobile: track whether we're showing the chat panel or the list panel
+  const [mobileShowChat, setMobileShowChat] = useState(false);
 
   const currentUserId = useSelector((state: any) => state.auth.user?.user_id);
   const userRole = useSelector((state: any) => state.auth.role);
@@ -72,10 +74,7 @@ const Messages: React.FC = () => {
   });
 
   const selectedConversation = useMemo(
-    () =>
-      conversations.find(
-        (conversation) => conversation.conversation_id === selectedConversationId
-      ) || null,
+    () => conversations.find((c) => c.conversation_id === selectedConversationId) || null,
     [conversations, selectedConversationId]
   );
 
@@ -93,18 +92,14 @@ const Messages: React.FC = () => {
           offset: messageOffset,
         }
       : skipToken,
-    {
-      refetchOnFocus: true,
-      refetchOnReconnect: true,
-    }
+    { refetchOnFocus: true, refetchOnReconnect: true }
   );
 
   const [sendMessage, { isLoading: sendLoading }] = useSendMessageMutation();
   const [markConversationRead] = useMarkConversationReadMutation();
 
   useEffect(() => {
-    const nextConversations = sortConversations(conversationsData?.data || []);
-    setConversations(nextConversations);
+    setConversations(sortConversations(conversationsData?.data || []));
   }, [conversationsData]);
 
   useEffect(() => {
@@ -116,28 +111,21 @@ const Messages: React.FC = () => {
 
   useEffect(() => {
     if (!selectedConversationId && conversations.length > 0) {
-      const fallbackConversationId =
+      const fallback =
         selectedConversationIdFromQuery &&
-        conversations.some(
-          (conversation) => conversation.conversation_id === selectedConversationIdFromQuery
-        )
+        conversations.some((c) => c.conversation_id === selectedConversationIdFromQuery)
           ? selectedConversationIdFromQuery
           : conversations[0].conversation_id;
-
-      setSelectedConversationId(fallbackConversationId);
-      setSearchParams({ conversationId: fallbackConversationId });
+      setSelectedConversationId(fallback);
+      setSearchParams({ conversationId: fallback });
     }
   }, [conversations, selectedConversationId, selectedConversationIdFromQuery, setSearchParams]);
 
   useEffect(() => {
     if (!messagesData?.data) {
-      if (!selectedConversation) {
-        setMessages([]);
-        setHasMoreMessages(false);
-      }
+      if (!selectedConversation) { setMessages([]); setHasMoreMessages(false); }
       return;
     }
-
     const nextPage = dedupeMessages(messagesData.data);
     setHasMoreMessages((messagesData.total || 0) > messageOffset + nextPage.length);
     setMessages((prev) =>
@@ -148,155 +136,87 @@ const Messages: React.FC = () => {
   useEffect(() => {
     if (!selectedConversation?.conversation_id) return;
     if ((selectedConversation.unreadCount || 0) === 0) return;
-
     markConversationRead(selectedConversation.conversation_id)
       .unwrap()
-      .then(() => {
-        refetchConversations();
-      })
+      .then(() => refetchConversations())
       .catch(() => undefined);
   }, [markConversationRead, refetchConversations, selectedConversation]);
 
   useEffect(() => {
     if (!accessToken || !selectedConversation?.conversation_id) return;
-
     joinConversationRoom(selectedConversation.conversation_id, () => accessToken);
-
-    return () => {
-      leaveConversationRoom(selectedConversation.conversation_id, () => accessToken);
-    };
+    return () => { leaveConversationRoom(selectedConversation.conversation_id, () => accessToken); };
   }, [accessToken, selectedConversation?.conversation_id]);
 
   useEffect(() => {
     if (!accessToken) return;
-
     const socket = getSocket(() => accessToken);
     if (!socket) return;
 
-    const handleNewMessage = async (payload: {
-      conversation_id?: string;
-      message?: IMessage;
-    }) => {
-      const incomingMessage = payload.message;
-      if (!incomingMessage) return;
+    const handleNewMessage = async (payload: { conversation_id?: string; message?: IMessage }) => {
+      const incoming = payload.message;
+      if (!incoming) return;
 
       setConversations((prev) =>
         sortConversations(
-          prev.map((conversation) => {
-            if (conversation.conversation_id !== incomingMessage.conversation_id) {
-              return conversation;
-            }
-
-            const isCurrentConversation =
-              conversation.conversation_id === selectedConversationId;
-            const nextUnreadCount =
-              incomingMessage.sender_id === currentUserId || isCurrentConversation
+          prev.map((c) => {
+            if (c.conversation_id !== incoming.conversation_id) return c;
+            const isCurrent = c.conversation_id === selectedConversationId;
+            const nextUnread =
+              incoming.sender_id === currentUserId || isCurrent
                 ? 0
-                : (conversation.unreadCount || 0) + 1;
-
-            return {
-              ...conversation,
-              lastMessage: incomingMessage,
-              last_message_at: incomingMessage.created_at,
-              unreadCount: nextUnreadCount,
-            };
+                : (c.unreadCount || 0) + 1;
+            return { ...c, lastMessage: incoming, last_message_at: incoming.created_at, unreadCount: nextUnread };
           })
         )
       );
 
-      if (incomingMessage.conversation_id === selectedConversationId) {
-        setMessages((prev) => dedupeMessages([...prev, incomingMessage]));
-
-        if (incomingMessage.sender_id !== currentUserId) {
+      if (incoming.conversation_id === selectedConversationId) {
+        setMessages((prev) => dedupeMessages([...prev, incoming]));
+        if (incoming.sender_id !== currentUserId) {
           try {
-            await markConversationRead(incomingMessage.conversation_id).unwrap();
+            await markConversationRead(incoming.conversation_id).unwrap();
             await refetchConversations();
-          } catch {
-            // Best effort only.
-          }
+          } catch { /* best effort */ }
         }
       } else {
         refetchConversations();
       }
     };
 
-    const handleMessagesRead = (payload: {
-      conversation_id?: string;
-      reader_id?: string;
-      read_at?: string;
-    }) => {
-      if (!payload.conversation_id) return;
+    const handleMessagesRead = (payload: { conversation_id?: string }) => {
       if (payload.conversation_id !== selectedConversationId) return;
-
       setMessages((prev) =>
-        prev.map((message) =>
-          message.sender_id === currentUserId
-            ? { ...message, read_status: true }
-            : message
-        )
+        prev.map((m) => m.sender_id === currentUserId ? { ...m, read_status: true } : m)
       );
     };
 
-    const handleMessageDelivered = (payload: {
-      message_id?: string;
-      delivered_at?: string;
-    }) => {
+    const handleMessageDelivered = (payload: { message_id?: string; delivered_at?: string }) => {
       if (!payload.message_id) return;
-
       setMessages((prev) =>
-        prev.map((message) =>
-          message.message_id === payload.message_id
-            ? {
-                ...message,
-                delivered_at: payload.delivered_at || new Date().toISOString(),
-              }
-            : message
+        prev.map((m) =>
+          m.message_id === payload.message_id
+            ? { ...m, delivered_at: payload.delivered_at || new Date().toISOString() }
+            : m
         )
       );
     };
 
-    const handleTyping = (payload: {
-      conversation_id?: string;
-      user_id?: string;
-      is_typing?: boolean;
-    }) => {
-      if (!payload.conversation_id || !payload.user_id || payload.user_id === currentUserId) {
-        return;
-      }
-
-      const conversationId = payload.conversation_id;
-      const typingUserId = payload.user_id;
-
+    const handleTyping = (payload: { conversation_id?: string; user_id?: string; is_typing?: boolean }) => {
+      if (!payload.conversation_id || !payload.user_id || payload.user_id === currentUserId) return;
       setTypingConversationIds((prev) => {
-        const set = new Set(prev);
-        if (payload.is_typing) {
-          set.add(conversationId);
-        } else {
-          set.delete(conversationId);
-        }
-        return Array.from(set);
+        const s = new Set(prev);
+        payload.is_typing ? s.add(payload.conversation_id!) : s.delete(payload.conversation_id!);
+        return Array.from(s);
       });
-
-      setTypingUsers((prev) => ({
-        ...prev,
-        [typingUserId]: Boolean(payload.is_typing),
-      }));
+      setTypingUsers((prev) => ({ ...prev, [payload.user_id!]: Boolean(payload.is_typing) }));
     };
 
-    const handlePresence = (payload: {
-      user_id?: string;
-      is_online?: boolean;
-      last_seen_at?: string | null;
-    }) => {
+    const handlePresence = (payload: { user_id?: string; is_online?: boolean; last_seen_at?: string | null }) => {
       if (!payload.user_id) return;
-      const presenceUserId = payload.user_id;
-
       setPresenceByUserId((prev) => ({
         ...prev,
-        [presenceUserId]: {
-          is_online: Boolean(payload.is_online),
-          last_seen_at: payload.last_seen_at,
-        },
+        [payload.user_id!]: { is_online: Boolean(payload.is_online), last_seen_at: payload.last_seen_at },
       }));
     };
 
@@ -313,33 +233,25 @@ const Messages: React.FC = () => {
       socket.off('conversation:typing', handleTyping);
       socket.off('conversation:presence', handlePresence);
     };
-  }, [
-    accessToken,
-    currentUserId,
-    markConversationRead,
-    refetchConversations,
-    selectedConversationId,
-  ]);
+  }, [accessToken, currentUserId, markConversationRead, refetchConversations, selectedConversationId]);
 
   const handleSelectConversation = async (conversation: IConversation) => {
     setSelectedConversationId(conversation.conversation_id);
     setSearchParams({ conversationId: conversation.conversation_id });
     setMessages([]);
     setMessageOffset(0);
+    setMobileShowChat(true); // Switch to chat panel on mobile
 
     if ((conversation.unreadCount || 0) > 0) {
       try {
         await markConversationRead(conversation.conversation_id).unwrap();
         await refetchConversations();
-      } catch {
-        // Best effort only.
-      }
+      } catch { /* best effort */ }
     }
   };
 
   const handleSendMessage = async (content: string, file?: File) => {
     if (!selectedConversation) return;
-
     try {
       const result = await sendMessage({
         conversationId: selectedConversation.conversation_id,
@@ -351,14 +263,10 @@ const Messages: React.FC = () => {
         setMessages((prev) => dedupeMessages([...prev, result.data]));
         setConversations((prev) =>
           sortConversations(
-            prev.map((conversation) =>
-              conversation.conversation_id === selectedConversation.conversation_id
-                ? {
-                    ...conversation,
-                    lastMessage: result.data,
-                    last_message_at: result.data.created_at,
-                  }
-                : conversation
+            prev.map((c) =>
+              c.conversation_id === selectedConversation.conversation_id
+                ? { ...c, lastMessage: result.data, last_message_at: result.data.created_at }
+                : c
             )
           )
         );
@@ -373,37 +281,173 @@ const Messages: React.FC = () => {
       ? selectedConversation.student
       : selectedConversation?.employer;
 
-  const otherUserPresence = otherUser?.user_id
-    ? presenceByUserId[otherUser.user_id]
-    : undefined;
+  const otherUserPresence = otherUser?.user_id ? presenceByUserId[otherUser.user_id] : undefined;
+
+  const totalUnread = conversations.reduce((acc, c) => acc + (c.unreadCount || 0), 0);
 
   return (
-    <div className="overflow-hidden rounded-[2rem] border border-slate-200 bg-white shadow-[0_20px_70px_rgba(15,23,42,0.08)]">
-      <div className="flex items-center justify-between border-b border-slate-200 px-4 py-4 md:px-6">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight text-slate-950">Messages</h1>
-          <p className="mt-1 text-sm text-slate-500">
-            {userRole === 'employer'
-              ? 'Stay aligned with approved students in real time.'
-              : 'Keep project conversations moving with employers.'}
-          </p>
+    <div
+      style={{
+        height: 'calc(100vh - 80px)',
+        minHeight: 480,
+        display: 'flex',
+        flexDirection: 'column',
+        background: '#fff',
+        borderRadius: 16,
+        border: '1px solid #e5e7eb',
+        overflow: 'hidden',
+        boxShadow: '0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04)',
+      }}
+    >
+      <style>{`
+        @media (max-width: 768px) {
+          .msg-sidebar { display: ${mobileShowChat ? 'none' : 'flex'} !important; width: 100% !important; }
+          .msg-chat { display: ${mobileShowChat ? 'flex' : 'none'} !important; width: 100% !important; }
+          .msg-back-btn { display: flex !important; }
+        }
+        @media (min-width: 769px) {
+          .msg-sidebar { display: flex !important; width: 320px !important; }
+          .msg-chat { display: flex !important; }
+          .msg-back-btn { display: none !important; }
+        }
+        .msg-back-btn { display: none; align-items: center; gap: 6px; border: none; background: transparent; cursor: pointer; font-size: 13px; font-weight: 600; color: #6366f1; padding: 4px 8px; border-radius: 8px; transition: background 0.12s; }
+        .msg-back-btn:hover { background: #eef2ff; }
+      `}</style>
+
+      {/* Page header */}
+      <div style={{
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        padding: '14px 20px',
+        borderBottom: '1px solid #f3f4f6',
+        flexShrink: 0,
+        gap: 12,
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          {/* Mobile back button */}
+          <button
+            type="button"
+            className="msg-back-btn"
+            onClick={() => setMobileShowChat(false)}
+          >
+            <ArrowLeftIcon style={{ width: 14, height: 14 }} />
+            Back
+          </button>
+
+          <div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <h1 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: '#111827', letterSpacing: '-0.01em' }}>
+                Messages
+              </h1>
+              {totalUnread > 0 && (
+                <span style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  minWidth: 20,
+                  height: 20,
+                  padding: '0 6px',
+                  borderRadius: 10,
+                  background: '#6366f1',
+                  color: '#fff',
+                  fontSize: 11,
+                  fontWeight: 700,
+                }}>
+                  {totalUnread > 99 ? '99+' : totalUnread}
+                </span>
+              )}
+            </div>
+            <p style={{ margin: 0, fontSize: 12, color: '#9ca3af', marginTop: 1 }}>
+              {userRole === 'employer'
+                ? 'Manage conversations with approved students'
+                : 'Stay connected with your employers'}
+            </p>
+          </div>
         </div>
 
-        <button
-          type="button"
-          onClick={() => {
-            refetchConversations();
-            if (selectedConversation) refetchMessages();
-          }}
-          className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-4 py-2.5 text-sm font-medium text-slate-600 transition hover:border-slate-300 hover:bg-slate-50"
-        >
-          <ArrowPathIcon className={`h-4 w-4 ${isFetchingMessages ? 'animate-spin' : ''}`} />
-          Refresh
-        </button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          {isFetchingMessages && (
+            <span style={{ fontSize: 11, color: '#9ca3af' }}>Syncing…</span>
+          )}
+          <button
+            type="button"
+            onClick={() => {
+              refetchConversations();
+              if (selectedConversation) refetchMessages();
+            }}
+            style={{
+              border: '1px solid #e5e7eb',
+              background: '#fff',
+              borderRadius: 9,
+              padding: '6px 12px',
+              fontSize: 12.5,
+              fontWeight: 500,
+              color: '#374151',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 5,
+              transition: 'background 0.12s, border-color 0.12s',
+            }}
+            onMouseOver={(e) => {
+              (e.currentTarget as HTMLButtonElement).style.background = '#f9fafb';
+              (e.currentTarget as HTMLButtonElement).style.borderColor = '#d1d5db';
+            }}
+            onMouseOut={(e) => {
+              (e.currentTarget as HTMLButtonElement).style.background = '#fff';
+              (e.currentTarget as HTMLButtonElement).style.borderColor = '#e5e7eb';
+            }}
+          >
+            Refresh
+          </button>
+        </div>
       </div>
 
-      <div className="grid min-h-[calc(100vh-14rem)] grid-cols-1 overflow-hidden lg:grid-cols-[360px_minmax(0,1fr)]">
-        <div className="border-b border-slate-200 lg:border-b-0 lg:border-r">
+      {/* Error banners */}
+      {conversationsError && (
+        <div style={{
+          margin: '8px 16px 0',
+          padding: '9px 14px',
+          background: '#fef2f2',
+          border: '1px solid #fecaca',
+          borderRadius: 10,
+          fontSize: 13,
+          color: '#b91c1c',
+          flexShrink: 0,
+        }}>
+          Failed to load conversations. Check your connection and try refreshing.
+        </div>
+      )}
+      {messagesError && selectedConversation && (
+        <div style={{
+          margin: '8px 16px 0',
+          padding: '9px 14px',
+          background: '#fef2f2',
+          border: '1px solid #fecaca',
+          borderRadius: 10,
+          fontSize: 13,
+          color: '#b91c1c',
+          flexShrink: 0,
+        }}>
+          Failed to load messages for this conversation.
+        </div>
+      )}
+
+      {/* Two-panel layout */}
+      <div style={{ flex: 1, display: 'flex', overflow: 'hidden', position: 'relative' }}>
+        {/* Sidebar */}
+        <div
+          className="msg-sidebar"
+          style={{
+            width: 320,
+            flexShrink: 0,
+            display: 'flex',
+            flexDirection: 'column',
+            overflow: 'hidden',
+            borderRight: '1px solid #e5e7eb',
+          }}
+        >
           <ConversationList
             conversations={conversations}
             currentUserId={currentUserId}
@@ -414,12 +458,21 @@ const Messages: React.FC = () => {
             loading={conversationsLoading}
             typingConversationIds={typingConversationIds}
             onlineUserIds={Object.entries(presenceByUserId)
-              .filter(([, value]) => value.is_online)
-              .map(([userId]) => userId)}
+              .filter(([, v]) => v.is_online)
+              .map(([uid]) => uid)}
           />
         </div>
 
-        <div className="min-h-[28rem]">
+        {/* Chat panel */}
+        <div
+          className="msg-chat"
+          style={{
+            flex: 1,
+            display: 'flex',
+            flexDirection: 'column',
+            overflow: 'hidden',
+          }}
+        >
           <ChatWindow
             conversation={selectedConversation}
             messages={messages}
@@ -445,18 +498,6 @@ const Messages: React.FC = () => {
           />
         </div>
       </div>
-
-      {conversationsError ? (
-        <div className="m-4 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
-          Failed to load conversations.
-        </div>
-      ) : null}
-
-      {messagesError && selectedConversation ? (
-        <div className="mx-4 mb-4 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
-          Failed to load messages for this conversation.
-        </div>
-      ) : null}
     </div>
   );
 };
