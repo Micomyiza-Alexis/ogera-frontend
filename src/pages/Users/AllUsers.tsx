@@ -53,6 +53,7 @@ const AllUsers: React.FC = () => {
   
   const [page, setPage] = useState(0);
   const [limit, setLimit] = useState(10);
+  const [searchQuery, setSearchQuery] = useState(""); // Add search state
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [viewDialogOpen, setViewDialogOpen] = useState(false);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
@@ -90,6 +91,7 @@ const AllUsers: React.FC = () => {
   // Use getAllUsers API with server-side pagination - this endpoint uses roleType from roles table
   // Now includes counts for students and employers in a single API call
   // No type parameter means fetch all users (students and employers)
+  // Search is performed on the backend for efficiency
   const { 
     data: usersData, 
     isLoading, 
@@ -97,6 +99,7 @@ const AllUsers: React.FC = () => {
   } = useGetAllUsersQuery({
     page: page + 1, // Backend uses 1-based pagination
     limit: limit,
+    search: searchQuery, // Pass search query to API
     // No type parameter = fetch all users
   });
 
@@ -441,6 +444,11 @@ const AllUsers: React.FC = () => {
         selectable={true}
         searchable={true}
         searchPlaceholder={t("pages.users.searchPlaceholder")}
+        onSearch={(query) => {
+          setSearchQuery(query);
+          setPage(0); // Reset to first page when searching
+        }}
+        disableClientSideSearch={true} // Disable client-side filtering as we use server-side search
         rowsPerPageOptions={[5, 10, 25, 50]}
         defaultRowsPerPage={limit}
         serverSidePagination={true}
