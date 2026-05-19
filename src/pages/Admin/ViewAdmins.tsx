@@ -44,10 +44,12 @@ const ViewAdmins: React.FC = () => {
   const dateLocale = dateLocaleMap[i18n.language] || "en-US";
   const [page, setPage] = useState(0);
   const [limit, setLimit] = useState(10);
+  const [searchQuery, setSearchQuery] = useState("");
 
   const { data, isLoading, isError, refetch } = useGetAllAdminsQuery({
     page: page + 1, // API uses 1-based page, table uses 0-based
     limit,
+    search: searchQuery,
   });
 
   const [deleteAdmin, { isLoading: isDeleting }] = useDeleteAdminMutation();
@@ -164,14 +166,13 @@ const ViewAdmins: React.FC = () => {
     mobile_number: admin.mobile_number,
   });
 
-  // Filter out superadmin from the list
-  const admins: Admin[] = (data?.data || [])
-    .filter((admin: AdminProfile) => {
-      // Exclude superadmin - only show admins with roleType "admin"
-      return admin.role?.roleType === "admin";
-    })
-    .map((admin, index) => mapAdmin(admin, index));
-  const totalCount = admins.length;
+  // Use server response data array, since the endpoint returns an object wrapper.
+  const rawAdmins = data?.data ?? [];
+  const admins: Admin[] = (!data && isError && searchQuery)
+    ? []
+    : rawAdmins.map((admin: AdminProfile, index: number) => mapAdmin(admin, index));
+
+  const totalCount = data?.pagination?.total ?? rawAdmins.length;
 
   const columns: Column<Admin>[] = [
     {
@@ -331,6 +332,8 @@ const ViewAdmins: React.FC = () => {
         selectable={true}
         searchable={true}
         searchPlaceholder={t("pages.admin.searchPlaceholder")}
+        onSearch={(q) => { setSearchQuery(q); setPage(0); }}
+        disableClientSideSearch={true}
         rowsPerPageOptions={[5, 10, 25, 50]}
         defaultRowsPerPage={limit}
         serverSidePagination={true}

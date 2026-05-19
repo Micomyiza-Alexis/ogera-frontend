@@ -56,6 +56,7 @@ const Students: React.FC = () => {
   
   const [page, setPage] = useState(0);
   const [limit, setLimit] = useState(10);
+  const [searchQuery, setSearchQuery] = useState(""); // Add search state
   const [viewDialogOpen, setViewDialogOpen] = useState(false);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [studentToView, setStudentToView] = useState<Student | null>(null);
@@ -68,6 +69,7 @@ const Students: React.FC = () => {
     page: page + 1,
     limit: limit,
     type: "Student",
+    search: searchQuery, // Pass search query to API
   });
 
 
@@ -318,6 +320,11 @@ const Students: React.FC = () => {
         }
         searchable={true}
         searchPlaceholder={t("pages.users.searchStudents")}
+        onSearch={(query) => {
+          setSearchQuery(query);
+          setPage(0); // Reset to first page when searching
+        }}
+        disableClientSideSearch={true} // Disable client-side filtering as we use server-side search
         rowsPerPageOptions={[5, 10, 25, 50]}
         defaultRowsPerPage={limit}
         serverSidePagination={true}

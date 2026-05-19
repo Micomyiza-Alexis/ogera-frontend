@@ -33,7 +33,9 @@ const ViewPermissions: React.FC = () => {
   const { t, i18n } = useTranslation();
   const dateLocaleMap: Record<string, string> = { af: "af-ZA", zu: "zu-ZA", sw: "sw-KE", rw: "rw-RW", fr: "fr-FR" };
   const dateLocale = dateLocaleMap[i18n.language] || "en-US";
-  const { data: permissionsData, isLoading, isError, refetch } = useGetAllPermissionsQuery();
+  const [searchQuery, setSearchQuery] = useState("");
+  const permissionsQueryArg = searchQuery.trim() ? { search: searchQuery.trim() } : undefined;
+  const { data: permissionsData, isLoading, isError, refetch } = useGetAllPermissionsQuery(permissionsQueryArg);
   const { data: routesData } = useGetAllRoutesQuery();
   const [deletePermission, { isLoading: isDeleting }] = useDeletePermissionMutation();
   const [updatePermission, { isLoading: isUpdating }] = useUpdatePermissionMutation();
@@ -171,9 +173,15 @@ const ViewPermissions: React.FC = () => {
       : "-",
   });
 
-  const permissions: PermissionRow[] = (permissionsData?.data || []).map((permission, index) =>
-    mapPermission(permission, index)
-  );
+  const rawPermissions = Array.isArray(permissionsData)
+    ? permissionsData
+    : permissionsData?.data || [];
+
+  const permissions: PermissionRow[] = (isError && searchQuery)
+    ? []
+    : (rawPermissions || []).map((permission, index) =>
+        mapPermission(permission, index)
+      );
 
   const columns: Column<PermissionRow>[] = [
     {
@@ -304,6 +312,8 @@ const ViewPermissions: React.FC = () => {
         selectable={true}
         searchable={true}
         searchPlaceholder={t("pages.permission.searchPlaceholder")}
+        onSearch={(q) => { setSearchQuery(q); }}
+        disableClientSideSearch={true}
         rowsPerPageOptions={[5, 10, 25, 50]}
         defaultRowsPerPage={10}
         serverSidePagination={false}

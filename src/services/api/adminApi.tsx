@@ -24,6 +24,7 @@ export interface AdminProfile {
 export interface PaginationParams {
   page?: number;
   limit?: number;
+  search?: string;
 }
 
 export interface PaginationMeta {
@@ -156,14 +157,13 @@ export const adminApi = apiSlice.injectEndpoints({
     // Get all admins/subadmins (superadmin only)
     getAllAdmins: builder.query<AdminsListResponse, PaginationParams | void>({
       query: (params = {}) => {
-        const { page = 1, limit = 10 } = params || {};
+        const { page = 1, limit = 10, search } = params || {};
+        const qp: Record<string, any> = { page, limit };
+        if (search && search.trim()) qp.search = search.trim();
         return {
           url: "/auth/subadmins",
           method: "GET",
-          params: {
-            page,
-            limit,
-          },
+          params: qp,
         };
       },
       providesTags: ["User"],
@@ -203,12 +203,15 @@ export const adminApi = apiSlice.injectEndpoints({
       invalidatesTags: ["User"],
     }),
 
-    // Get all roles (for dropdown selection)
-    getAllRoles: builder.query<Role[], void>({
-      query: () => ({
-        url: "/roles",
-        method: "GET",
-      }),
+    // Get all roles (for dropdown selection / listing)
+    getAllRoles: builder.query<Role[], { search?: string } | void>({
+      query: (params = {}) => {
+        const search = params?.search?.trim();
+        return {
+          url: search ? `/roles?search=${encodeURIComponent(search)}` : "/roles",
+          method: "GET",
+        };
+      },
       providesTags: ["Role"],
     }),
 
@@ -254,11 +257,14 @@ export const adminApi = apiSlice.injectEndpoints({
     }),
 
     // Get all permissions (superadmin only)
-    getAllPermissions: builder.query<PermissionsResponse, void>({
-      query: () => ({
-        url: "/permissions",
-        method: "GET",
-      }),
+    getAllPermissions: builder.query<PermissionsResponse, { search?: string } | void>({
+      query: (params = {}) => {
+        const search = params?.search?.trim();
+        return {
+          url: search ? `/permissions?search=${encodeURIComponent(search)}` : "/permissions",
+          method: "GET",
+        };
+      },
       providesTags: ["Permission"],
     }),
 

@@ -5,6 +5,7 @@ export interface PaginationParams {
   page?: number;
   limit?: number;
   type?: string; // "all", "Student", or "Employer"
+  search?: string; // Search by name or email
 }
 
 export interface PaginationMeta {
@@ -31,9 +32,10 @@ export const usersApi = apiSlice.injectEndpoints({
     // Get all users (admin / superadmin)
     // This single endpoint handles all user types based on the 'type' parameter
     // type: undefined or "all" = all users, "Student" = students only, "Employer" = employers only
+    // Supports search by name or email via the 'search' parameter
     getAllUsers: builder.query<UsersListResponse, PaginationParams | void>({
       query: (params = {}) => {
-        const { page = 1, limit = 10, type } = params || {};
+        const { page = 1, limit = 10, type, search } = params || {};
         const queryParams: Record<string, any> = {
           page,
           limit,
@@ -41,6 +43,10 @@ export const usersApi = apiSlice.injectEndpoints({
         // Only add type parameter if it's provided and not "all"
         if (type && type !== "all") {
           queryParams.type = type;
+        }
+        // Only add search parameter if it's provided and not empty
+        if (search && search.trim()) {
+          queryParams.search = search.trim();
         }
         return {
           url: "/users",

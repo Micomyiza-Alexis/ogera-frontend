@@ -30,11 +30,14 @@ export interface PermissionResponse {
 export const permissionsApi = apiSlice.injectEndpoints({
   endpoints: (builder) => ({
     // Get all permissions
-    getAllPermissions: builder.query<PermissionsResponse, void>({
-      query: () => ({
-        url: "/permissions",
-        method: "GET",
-      }),
+    getAllPermissions: builder.query<PermissionsResponse, { search?: string } | void>({
+      query: (params = {}) => {
+        const search = params?.search?.trim();
+        return {
+          url: search ? `/permissions?search=${encodeURIComponent(search)}` : "/permissions",
+          method: "GET",
+        };
+      },
       providesTags: ["Permission"],
     }),
 

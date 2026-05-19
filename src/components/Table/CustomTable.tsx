@@ -48,6 +48,7 @@ export interface CustomTableProps<T> {
   selectable?: boolean;
   searchable?: boolean;
   searchPlaceholder?: string;
+  onSearch?: (searchQuery: string) => void; // Callback for server-side search
   onSelectionChange?: (selected: T[]) => void;
   loading?: boolean;
   emptyMessage?: string;
@@ -64,6 +65,7 @@ export interface CustomTableProps<T> {
   page?: number;
   onPageChange?: (page: number) => void;
   onRowsPerPageChange?: (rowsPerPage: number) => void;
+  disableClientSideSearch?: boolean; // When true, don't filter data locally
 }
 
 function CustomTable<T extends Record<string, any>>({
@@ -74,6 +76,7 @@ function CustomTable<T extends Record<string, any>>({
   selectable = false,
   searchable = true,
   searchPlaceholder = "Search...",
+  onSearch,
   onSelectionChange,
   loading = false,
   emptyMessage = "No data available",
@@ -89,6 +92,7 @@ function CustomTable<T extends Record<string, any>>({
   page: externalPage,
   onPageChange: externalOnPageChange,
   onRowsPerPageChange: externalOnRowsPerPageChange,
+  disableClientSideSearch = false,
 }: CustomTableProps<T>) {
   const [internalPage, setInternalPage] = useState(0);
   const [internalRowsPerPage, setInternalRowsPerPage] =
@@ -113,6 +117,11 @@ function CustomTable<T extends Record<string, any>>({
 
   // Filter data based on search
   const filteredData = useMemo(() => {
+    // If server-side search is enabled (onSearch callback provided), skip client-side filtering
+    if (disableClientSideSearch || onSearch) {
+      return data;
+    }
+    
     if (!searchQuery) return data;
 
     return data.filter((row) => {
@@ -123,7 +132,7 @@ function CustomTable<T extends Record<string, any>>({
         return String(value).toLowerCase().includes(searchQuery.toLowerCase());
       });
     });
-  }, [data, searchQuery, columns]);
+  }, [data, searchQuery, columns, disableClientSideSearch, onSearch]);
 
   // Sort data
   const sortedData = useMemo(() => {
@@ -262,6 +271,11 @@ function CustomTable<T extends Record<string, any>>({
             value={searchQuery}
             onChange={(e) => {
               setSearchQuery(e.target.value);
+              // Call server-side search callback if provided
+              if (onSearch) {
+                onSearch(e.target.value);
+              }
+              // Reset to first page
               if (serverSidePagination && externalOnPageChange) {
                 externalOnPageChange(0);
               } else {

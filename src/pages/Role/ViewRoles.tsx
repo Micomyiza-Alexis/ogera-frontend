@@ -32,7 +32,9 @@ const ViewRoles: React.FC = () => {
   const { t, i18n } = useTranslation();
   const dateLocaleMap: Record<string, string> = { af: "af-ZA", zu: "zu-ZA", sw: "sw-KE", rw: "rw-RW", fr: "fr-FR" };
   const dateLocale = dateLocaleMap[i18n.language] || "en-US";
-  const { data: rolesData, isLoading, isError, refetch } = useGetAllRolesQuery();
+  const [searchQuery, setSearchQuery] = useState("");
+  const rolesQueryArg = searchQuery.trim() ? { search: searchQuery.trim() } : undefined;
+  const { data: rolesData, isLoading, isError, refetch } = useGetAllRolesQuery(rolesQueryArg);
   const { data: permissionsData } = useGetAllPermissionsQuery();
   const [deleteRole, { isLoading: isDeleting }] = useDeleteRoleMutation();
   const [updateRole, { isLoading: isUpdating }] = useUpdateRoleMutation();
@@ -212,9 +214,11 @@ const ViewRoles: React.FC = () => {
       : "-",
   });
 
-  const roles: RoleRow[] = (rolesData || []).map((role, index) =>
-    mapRole(role, index)
-  );
+  // rolesData is an array of Role objects from the API.
+  const rawRoles = rolesData ?? [];
+  const roles: RoleRow[] = (isError && searchQuery)
+    ? []
+    : rawRoles.map((role: Role, index: number) => mapRole(role, index));
 
   const getRoleTypeColor = (roleType: string) => {
     switch (roleType?.toLowerCase()) {
@@ -363,6 +367,8 @@ const ViewRoles: React.FC = () => {
         selectable={true}
         searchable={true}
         searchPlaceholder={t("pages.role.searchPlaceholder")}
+        onSearch={(q) => { setSearchQuery(q); }}
+        disableClientSideSearch={true}
         rowsPerPageOptions={[5, 10, 25, 50]}
         defaultRowsPerPage={10}
         serverSidePagination={false}
