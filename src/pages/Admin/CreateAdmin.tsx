@@ -244,15 +244,15 @@ const Container = styled("div")`
   width: 100%;
   min-height: calc(100vh - 80px);
   display: flex;
-  justify-content: center;
+  justify-content: flex-start;
   align-items: flex-start;
-  padding: 40px 20px;
+  padding: 0;
   background: var(--theme-page-bg);
   transition: background 0.35s ease;
 `;
 
 const FormContainer = styled("form")`
-  max-width: 600px;
+  max-width: 100%;
   width: 100%;
   background: var(--theme-card-bg);
   color: var(--theme-text-primary);

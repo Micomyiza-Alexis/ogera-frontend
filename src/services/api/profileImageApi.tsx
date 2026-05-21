@@ -19,12 +19,7 @@ export const uploadProfileImage = async (file: File): Promise<ProfileImageUpload
 
   const res = await api.post<ProfileImageUploadResponse>(
     "/profile/upload-image",
-    formData,
-    {
-      headers: {
-        "Content-Type": "multipart/form-data",
-      },
-    }
+    formData
   );
 
   return res.data;

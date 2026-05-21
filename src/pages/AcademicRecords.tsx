@@ -1,8 +1,17 @@
 import React from "react";
 import { useSelector } from "react-redux";
-import { CloudArrowUpIcon, DocumentIcon, EyeIcon, TrashIcon, XMarkIcon } from "@heroicons/react/24/outline";
-import toast from "react-hot-toast";
 import {
+  AcademicCapIcon,
+  CloudArrowUpIcon,
+  DocumentIcon,
+  EyeIcon,
+  TrashIcon,
+  XMarkIcon,
+} from "@heroicons/react/24/outline";
+import toast from "react-hot-toast";
+import ConfirmDeleteModal from "../components/AssessmentAdmin/ConfirmDeleteModal";
+import {
+  type AcademicRecord,
   useAddAcademicRecordMutation,
   useDeleteAcademicRecordMutation,
   useGetAllAcademicRecordsQuery,
@@ -40,6 +49,8 @@ const AcademicRecords: React.FC = () => {
   const [previewOpen, setPreviewOpen] = React.useState(false);
   const [previewUrl, setPreviewUrl] = React.useState<string>("");
   const [previewType, setPreviewType] = React.useState<"pdf" | "image" | "doc" | "other">("other");
+  const [showDeleteModal, setShowDeleteModal] = React.useState(false);
+  const [recordToDelete, setRecordToDelete] = React.useState<AcademicRecord | null>(null);
 
   const records = (isSuperAdmin ? allData?.data : myData?.data) || [];
 
@@ -139,17 +150,32 @@ const AcademicRecords: React.FC = () => {
     }
   };
 
-  const handleDelete = async (recordId: string) => {
+  const openDeleteModal = (record: AcademicRecord) => {
+    setRecordToDelete(record);
+    setShowDeleteModal(true);
+  };
+
+  const closeDeleteModal = () => {
+    if (deleting) return;
+    setShowDeleteModal(false);
+    setRecordToDelete(null);
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (!recordToDelete) return;
     setMessage("");
     setError("");
-    const confirmed = window.confirm("Are you sure you want to delete this academic record?");
-    if (!confirmed) return;
 
     try {
-      await deleteAcademicRecord(recordId).unwrap();
+      await deleteAcademicRecord(recordToDelete.record_id).unwrap();
+      toast.success("Academic record deleted successfully.");
       setMessage("Academic record deleted successfully.");
+      setShowDeleteModal(false);
+      setRecordToDelete(null);
     } catch (err: any) {
-      setError(err?.data?.message || "Failed to delete academic record.");
+      const errMsg = err?.data?.message || "Failed to delete academic record.";
+      setError(errMsg);
+      toast.error(errMsg);
     }
   };
 
@@ -361,80 +387,130 @@ const AcademicRecords: React.FC = () => {
         </form>
       )}
 
-      <div className="bg-white border border-gray-200 rounded-2xl p-4 shadow-sm">
-        <div className="flex items-center justify-between mb-3">
-          <h2 className="text-lg font-semibold text-gray-900">Records</h2>
-          <div className="text-sm text-gray-600 font-medium">
-            Avg %: <span className="font-semibold">{averagePercentage.toFixed(2)}</span> | I +30%:{" "}
-            <span className="font-semibold">{intelligenceBoost.toFixed(2)}</span>
+      <div className="bg-white border border-gray-200 rounded-2xl shadow-sm overflow-hidden">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 px-5 py-4 border-b border-gray-100 bg-gradient-to-r from-[#7F56D9]/5 to-transparent">
+          <div className="flex items-center gap-2">
+            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-[#7F56D9]/10 text-[#7F56D9]">
+              <AcademicCapIcon className="h-5 w-5" />
+            </div>
+            <div>
+              <h2 className="text-lg font-semibold text-gray-900">Your Academic Records</h2>
+              <p className="text-xs text-gray-500">
+                {records.length} record{records.length !== 1 ? "s" : ""} on file
+              </p>
+            </div>
+          </div>
+          <div className="flex flex-wrap gap-3 text-sm">
+            <span className="inline-flex items-center rounded-lg bg-gray-50 border border-gray-200 px-3 py-1.5 text-gray-700">
+              Avg %: <strong className="ml-1 text-[#7F56D9]">{averagePercentage.toFixed(2)}</strong>
+            </span>
+            <span className="inline-flex items-center rounded-lg bg-gray-50 border border-gray-200 px-3 py-1.5 text-gray-700">
+              I +30%: <strong className="ml-1 text-[#7F56D9]">{intelligenceBoost.toFixed(2)}</strong>
+            </span>
           </div>
         </div>
+
         {(myLoading || allLoading) ? (
-          <p className="text-sm text-gray-500">Loading records...</p>
+          <div className="px-5 py-12 text-center">
+            <div className="mx-auto h-8 w-8 border-2 border-[#7F56D9] border-t-transparent rounded-full animate-spin" />
+            <p className="text-sm text-gray-500 mt-3">Loading records...</p>
+          </div>
         ) : records.length === 0 ? (
-          <p className="text-sm text-gray-500">No academic records found.</p>
+          <div className="px-5 py-12 text-center">
+            <AcademicCapIcon className="mx-auto h-10 w-10 text-gray-300" />
+            <p className="text-sm text-gray-500 mt-2">No academic records found.</p>
+            {!isSuperAdmin && (
+              <p className="text-xs text-gray-400 mt-1">Add your first record using the form above.</p>
+            )}
+          </div>
         ) : (
           <div className="overflow-x-auto">
             <table className="min-w-full text-sm">
               <thead>
-                <tr className="text-left border-b bg-gray-50/80">
-                  {isSuperAdmin && <th className="py-2 pr-4">Student</th>}
-                  <th className="py-2 pr-4">Profile</th>
-                  <th className="py-2 pr-4">Details</th>
-                  <th className="py-2 pr-4">Percentage</th>
-                  <th className="py-2 pr-4">Grade</th>
-                  <th className="py-2 pr-4">Certificate</th>
-                  <th className="py-2 pr-4 text-right">Action</th>
+                <tr className="text-left border-b border-gray-200 bg-gray-50">
+                  {isSuperAdmin && (
+                    <th className="px-5 py-3 text-xs font-semibold uppercase tracking-wider text-gray-500">
+                      Student
+                    </th>
+                  )}
+                  <th className="px-5 py-3 text-xs font-semibold uppercase tracking-wider text-gray-500">
+                    Profile
+                  </th>
+                  <th className="px-5 py-3 text-xs font-semibold uppercase tracking-wider text-gray-500">
+                    Details
+                  </th>
+                  <th className="px-5 py-3 text-xs font-semibold uppercase tracking-wider text-gray-500">
+                    Percentage
+                  </th>
+                  <th className="px-5 py-3 text-xs font-semibold uppercase tracking-wider text-gray-500">
+                    Grade
+                  </th>
+                  <th className="px-5 py-3 text-xs font-semibold uppercase tracking-wider text-gray-500">
+                    Certificate
+                  </th>
+                  <th className="px-5 py-3 text-xs font-semibold uppercase tracking-wider text-gray-500 text-right">
+                    Actions
+                  </th>
                 </tr>
               </thead>
-              <tbody>
-                {records.map((record) => (
-                  <tr key={record.record_id} className="border-b last:border-b-0 hover:bg-gray-50/60 transition">
+              <tbody className="divide-y divide-gray-100">
+                {records.map((record, index) => (
+                  <tr
+                    key={record.record_id}
+                    className={`transition-colors hover:bg-[#7F56D9]/[0.03] ${
+                      index % 2 === 0 ? "bg-white" : "bg-gray-50/40"
+                    }`}
+                  >
                     {isSuperAdmin && (
-                      <td className="py-2 pr-4">
-                        {record.user?.full_name || "N/A"} ({record.user?.email || "N/A"})
+                      <td className="px-5 py-3.5">
+                        <p className="font-medium text-gray-900">{record.user?.full_name || "N/A"}</p>
+                        <p className="text-xs text-gray-500">{record.user?.email || "N/A"}</p>
                       </td>
                     )}
-                    <td className="py-2 pr-4">
+                    <td className="px-5 py-3.5">
                       <span className="inline-flex items-center rounded-full bg-[#7F56D9]/10 text-[#7F56D9] px-2.5 py-1 text-xs font-semibold capitalize">
                         {getDisplayProfile(record)}
                       </span>
                     </td>
-                    <td className="py-2 pr-4 font-medium text-gray-700">
+                    <td className="px-5 py-3.5 font-medium text-gray-800">
                       {getDisplayDetails(record)}
                     </td>
-                    <td className="py-2 pr-4">{record.percentage}</td>
-                    <td className="py-2 pr-4">{record.grade || "-"}</td>
-                    <td className="py-2 pr-4">
+                    <td className="px-5 py-3.5">
+                      <span className="font-semibold text-gray-900">{record.percentage}%</span>
+                    </td>
+                    <td className="px-5 py-3.5 text-gray-600">{record.grade || "—"}</td>
+                    <td className="px-5 py-3.5">
                       {record.certificate_path ? (
-                        <span className="inline-flex items-center gap-1 text-green-700 font-medium">
-                          <DocumentIcon className="h-4 w-4" />
+                        <span className="inline-flex items-center gap-1.5 rounded-full bg-green-50 text-green-700 px-2.5 py-1 text-xs font-medium border border-green-100">
+                          <DocumentIcon className="h-3.5 w-3.5" />
                           Uploaded
                         </span>
                       ) : (
-                        "-"
+                        <span className="text-gray-400">—</span>
                       )}
                     </td>
-                    <td className="py-2 pr-4 text-right">
-                      <div className="inline-flex items-center gap-2">
+                    <td className="px-5 py-3.5">
+                      <div className="flex items-center justify-end gap-2">
                         <button
                           type="button"
                           onClick={() => handleViewCertificate(record.record_id)}
                           disabled={!record.certificate_path}
-                          className="inline-flex items-center justify-center rounded-lg border border-[#7F56D9]/30 p-2 text-[#7F56D9] hover:bg-[#7F56D9]/10 disabled:opacity-40"
+                          className="inline-flex items-center justify-center rounded-lg border border-[#7F56D9]/30 p-2 text-[#7F56D9] hover:bg-[#7F56D9]/10 disabled:opacity-40 disabled:cursor-not-allowed transition"
                           title="View certificate"
                         >
                           <EyeIcon className="h-4 w-4" />
                         </button>
-                        <button
-                          type="button"
-                          onClick={() => handleDelete(record.record_id)}
-                          disabled={deleting}
-                          className="inline-flex items-center justify-center rounded-lg border border-red-200 p-2 text-red-600 hover:bg-red-50 disabled:opacity-60"
-                          title="Delete record"
-                        >
-                          <TrashIcon className="h-4 w-4" />
-                        </button>
+                        {!isSuperAdmin && (
+                          <button
+                            type="button"
+                            onClick={() => openDeleteModal(record)}
+                            disabled={deleting}
+                            className="inline-flex items-center justify-center rounded-lg border border-red-200 p-2 text-red-600 hover:bg-red-50 disabled:opacity-60 disabled:cursor-not-allowed transition"
+                            title="Delete record"
+                          >
+                            <TrashIcon className="h-4 w-4" />
+                          </button>
+                        )}
                       </div>
                     </td>
                   </tr>
@@ -445,8 +521,19 @@ const AcademicRecords: React.FC = () => {
         )}
       </div>
 
+      <ConfirmDeleteModal
+        open={showDeleteModal && !!recordToDelete}
+        title="Delete Academic Record"
+        message="Are you sure you want to delete this academic record? This action cannot be undone."
+        itemName={recordToDelete ? getDisplayDetails(recordToDelete) : undefined}
+        confirmLabel="Delete Record"
+        isDeleting={deleting}
+        onConfirm={handleDeleteConfirm}
+        onCancel={closeDeleteModal}
+      />
+
       {previewOpen && (
-        <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="w-full max-w-4xl h-[85vh] bg-white rounded-2xl shadow-2xl overflow-hidden border border-gray-200 flex flex-col">
             <div className="flex items-center justify-between px-4 py-3 border-b bg-gray-50">
               <h3 className="text-sm font-semibold text-gray-800">Certificate Preview</h3>

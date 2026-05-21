@@ -1,7 +1,8 @@
 import React, { useEffect, useState, useMemo } from "react";
 
 import { useTranslation } from "react-i18next";
-import { useSelector } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
+import { setCredentials } from "../features/auth/authSlice";
 import { getUserProfile, updateUserProfile } from "../services/api/profileApi";
 import { uploadResume } from "../services/api/resumeApi";
 import api from "../services/api/axiosInstance";
@@ -93,7 +94,9 @@ interface SuperAdminNavItem {
 const Profile: React.FC = () => {
   const { t } = useTranslation();
   const navigate = useNavigate();
+  const dispatch = useDispatch();
   const user = useSelector((state: any) => state.auth.user);
+  const accessToken = useSelector((state: any) => state.auth.accessToken);
   const role = useSelector((state: any) => state.auth.role);
 
   const [profileData, setProfileData] = useState<UserProfile | null>(null);
@@ -193,18 +196,51 @@ const Profile: React.FC = () => {
   });
 
   // Fetch user profile from API
-  const fetchProfile = async () => {
+  const resolveProfileImageUrl = (imageUrl?: string | null) => {
+    if (!imageUrl) return "";
+    if (imageUrl.startsWith("http")) return imageUrl;
+    const baseUrl = (import.meta.env.VITE_API_URL || "https://api.ogera.sybellasystems.co.rw/api").replace("/api", "");
+    return imageUrl.startsWith("/") ? `${baseUrl}${imageUrl}` : `${baseUrl}/${imageUrl}`;
+  };
+
+  const syncProfileToStore = (updatedData: UserProfile) => {
+    if (!user || !accessToken || !role) return;
+    const resolvedImageUrl = resolveProfileImageUrl(updatedData.profile_image_url);
+    dispatch(
+      setCredentials({
+        user: {
+          ...user,
+          ...updatedData,
+          profile_image_url: resolvedImageUrl || updatedData.profile_image_url,
+        },
+        accessToken,
+        role,
+      })
+    );
+  };
+
+  const fetchProfile = async (options?: { silent?: boolean }) => {
     try {
-      setLoading(true);
+      if (!options?.silent) {
+        setLoading(true);
+      }
       const response = await getUserProfile();
-      setProfileData(response.data);
+      const updatedData = response.data;
+      setProfileData(updatedData);
       setError(null);
+      if (updatedData) {
+        syncProfileToStore(updatedData);
+      }
     } catch (err: any) {
       console.error("Error fetching profile:", err);
-      setError(err?.response?.data?.message || t("profile.failedToLoad"));
-      setProfileData(null);
+      if (!options?.silent) {
+        setError(err?.response?.data?.message || t("profile.failedToLoad"));
+        setProfileData(null);
+      }
     } finally {
-      setLoading(false);
+      if (!options?.silent) {
+        setLoading(false);
+      }
     }
   };
 
@@ -231,8 +267,8 @@ const Profile: React.FC = () => {
     }
   }, [fullProfileData]);
 
-  const handleProfileUpdateSuccess = () => {
-    fetchProfile();
+  const handleProfileUpdateSuccess = async () => {
+    await fetchProfile({ silent: true });
     refetchTrustScore();
     refetchFullProfile();
   };

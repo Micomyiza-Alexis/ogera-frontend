@@ -52,6 +52,7 @@ const ProfileHeaderCard: React.FC<ProfileHeaderCardProps> = ({
   const [resendVerificationEmail] = useResendVerificationEmailMutation();
   const profileImageInputRef = useRef<HTMLInputElement>(null);
   const [isUploadingImage, setIsUploadingImage] = useState(false);
+  const [profileImageVersion, setProfileImageVersion] = useState(0);
 
   const userData = profileData || user;
   const userRole = userData?.role?.roleName || role;
@@ -100,6 +101,22 @@ const ProfileHeaderCard: React.FC<ProfileHeaderCardProps> = ({
     }
   };
 
+  const updateAuthProfileImage = (newUrl: string) => {
+    if (!user || !accessToken || !role) return;
+    const resolvedUrl = resolveImageUrl(newUrl);
+    const cacheBustedUrl = resolvedUrl
+      ? `${resolvedUrl}${resolvedUrl.includes("?") ? "&" : "?"}t=${Date.now()}`
+      : newUrl;
+    dispatch(
+      setCredentials({
+        user: { ...user, profile_image_url: cacheBustedUrl },
+        accessToken,
+        role,
+      })
+    );
+    setProfileImageVersion((v) => v + 1);
+  };
+
   const handleProfileImageUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
@@ -117,8 +134,11 @@ const ProfileHeaderCard: React.FC<ProfileHeaderCardProps> = ({
 
     try {
       setIsUploadingImage(true);
-      await uploadProfileImage(file);
-      await refreshProfile();
+      const result = await uploadProfileImage(file);
+      const newUrl = result?.data?.profile_image_url;
+      if (newUrl) {
+        updateAuthProfileImage(newUrl);
+      }
       toast.success("Profile picture updated!");
     } catch (error: any) {
       toast.error(error?.response?.data?.message || "Failed to upload image");
@@ -127,6 +147,12 @@ const ProfileHeaderCard: React.FC<ProfileHeaderCardProps> = ({
       if (profileImageInputRef.current) {
         profileImageInputRef.current.value = "";
       }
+    }
+
+    try {
+      await refreshProfile();
+    } catch (error) {
+      console.error("Failed to refresh profile after image upload:", error);
     }
   };
 
@@ -171,7 +197,8 @@ const ProfileHeaderCard: React.FC<ProfileHeaderCardProps> = ({
                 </div>
                 {resolveImageUrl(user?.profile_image_url || profileData?.profile_image_url) && (
                   <img
-                    src={`${resolveImageUrl(user?.profile_image_url || profileData?.profile_image_url)}${resolveImageUrl(user?.profile_image_url || profileData?.profile_image_url)?.includes("?") ? "&" : "?"}t=${Date.now()}`}
+                    key={profileImageVersion}
+                    src={`${resolveImageUrl(user?.profile_image_url || profileData?.profile_image_url)}${resolveImageUrl(user?.profile_image_url || profileData?.profile_image_url)?.includes("?") ? "&" : "?"}v=${profileImageVersion}`}
                     alt={userData?.full_name || t("profile.user")}
                     className="absolute inset-0 w-full h-full object-cover"
                     onError={(e) => {
