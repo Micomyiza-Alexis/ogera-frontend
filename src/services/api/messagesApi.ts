@@ -98,6 +98,21 @@ export const messagesApi = apiSlice.injectEndpoints({
       ],
     }),
 
+    // Mark a conversation as read for the authenticated user
+    markConversationRead: builder.mutation<
+      { success: boolean; data: { updated: number }; message: string },
+      string
+    >({
+      query: (conversationId) => ({
+        url: `/messages/${conversationId}/read`,
+        method: 'POST',
+      }),
+      invalidatesTags: (_result, _error, conversationId) => [
+        { type: 'Messages', id: conversationId },
+        'Messages',
+      ],
+    }),
+
     // Delete a conversation
     deleteConversation: builder.mutation<
       { success: boolean; data: { success: boolean }; message: string },
@@ -118,6 +133,7 @@ export const {
   useSendMessageMutation,
   useCreateConversationMutation,
   useGetUnreadCountQuery,
+  useMarkConversationReadMutation,
   useDeleteConversationMutation,
   useLazyGetConversationsQuery,
   useLazyGetMessagesQuery,

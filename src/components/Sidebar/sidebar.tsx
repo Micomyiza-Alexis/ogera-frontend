@@ -4,6 +4,7 @@ import { useNavigate, useLocation } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { hasAnyPermission } from "../../utils/permissionUtils";
 import type { Role } from "../../utils/permissionUtils";
+import type { RoutePermission } from "../../features/auth/authSlice";
 import { SIDEBAR_MENU_CONFIG } from "../../config/sidebarMenuConfig";
 import { FEATURES } from "../../config/featureFlags";
 import {
@@ -46,6 +47,13 @@ interface SidebarProps {
   onClose: () => void;
 }
 
+type SidebarAuthState = {
+  auth: {
+    role?: Role | string | { roleType?: string; roleName?: string };
+    permissions?: RoutePermission[] | null;
+  };
+};
+
 const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
   const { t } = useTranslation();
   const [openMenu, setOpenMenu] = useState<string | null>(null);
@@ -55,8 +63,8 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
   const isActive = (path: string) => location.pathname === path;
   const isActiveGroup = (prefix: string) => location.pathname.startsWith(prefix);
 
-  const roleRaw = useSelector((state: any) => state.auth.role) as Role | string | undefined;
-  const permissions = useSelector((state: any) => state.auth.permissions);
+  const roleRaw = useSelector((state: SidebarAuthState) => state.auth.role) as Role | string | undefined;
+  const permissions = useSelector((state: SidebarAuthState) => state.auth.permissions) as RoutePermission[] | null;
   const role = roleRaw ? String(roleRaw).toLowerCase().trim() : "";
 
   // Check if this is a built-in admin role (superadmin or exact "admin" roleName) that bypasses permissions
@@ -85,7 +93,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
     return SIDEBAR_MENU_CONFIG.filter((config) => {
       return hasAnyPermission(permissions, config.permissionRoute, role);
     });
-  }, [permissions, isBuiltInAdmin]);
+  }, [permissions, isBuiltInAdmin, role]);
 
   // Log permissions on component mount/update
   React.useEffect(() => {
@@ -307,6 +315,23 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
               {t("sidebar.notifications")}
             </span>
           </div>
+
+          {/* Messages - Students only */}
+          {role === "student" && (
+            <div
+              className={`flex items-center gap-3 px-3 py-2.5 rounded-lg cursor-pointer transition-all duration-200 group ${
+                isActive("/dashboard/messages")
+                  ? "bg-[#9F7AEA]/15 text-white border-l-2 border-[#9F7AEA]"
+                  : "hover:bg-[#9F7AEA]/10"
+              }`}
+              onClick={() => handleNavigation("/dashboard/messages")}
+            >
+              <BellIcon className={`h-5 w-5 transition-colors ${isActive("/dashboard/messages") ? "text-white" : "text-white/70 group-hover:text-white"}`} />
+              <span className={`font-medium transition-colors ${isActive("/dashboard/messages") ? "text-white" : "group-hover:text-white"}`}>
+                Messages
+              </span>
+            </div>
+          )}
 
           {/* Employer-specific Jobs menu — replaces the shared Jobs menu below for employers */}
           {role === "employer" && (
